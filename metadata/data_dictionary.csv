@@ -1,0 +1,4 @@
+path,field,description,format
+models/tomato_detector.pt,names,One-class tomato detector vocabulary,"{0: tomato}"
+models/tomato_ripeness_classifier.pt,names,Four-stage ripeness-classifier vocabulary,"discoloration-period/green-maturity-period/immature-period/maturity-period"
+docs/four_stage_maturity_evaluation.md,reported_metrics,Repeated source-group holdout metrics,Markdown table

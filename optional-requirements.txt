@@ -1,0 +1,2 @@
+# Required for YOLO and two-stage inference; replay uses requirements.txt only.
+ultralytics>=8.3

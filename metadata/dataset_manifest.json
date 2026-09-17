@@ -1,0 +1,12 @@
+[
+  {
+    "path": "models/tomato_detector.pt",
+    "bytes": 6421489,
+    "sha256": "168fc5eb556ebc5a8266b9d934af0c953da221d1de8ab41fb9bcb7f736bafabd"
+  },
+  {
+    "path": "models/tomato_ripeness_classifier.pt",
+    "bytes": 2968520,
+    "sha256": "934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c"
+  }
+]

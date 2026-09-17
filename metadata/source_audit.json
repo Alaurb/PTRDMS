@@ -1,0 +1,52 @@
+{
+  "schema": "ptrdms.public_source_audit.v1",
+  "public_package": {
+    "raw_panoramas": {
+      "included": false,
+      "reason": "not redistributed without written publication authorization"
+    },
+    "site_maps": {
+      "included": false,
+      "reason": "not redistributed without written publication authorization"
+    },
+    "derived_archived_demonstrations": {
+      "included": false,
+      "reason": "derived from non-redistributed source imagery"
+    },
+    "reviewed_crop_images_and_annotations": {
+      "included": false,
+      "availability": "available from the authors upon reasonable request and subject to authorization"
+    }
+  },
+  "classifier_dataset": {
+    "reviewed_crops": 815,
+    "source_image_groups": 210,
+    "class_counts": {
+      "immature-period": 222,
+      "green-maturity-period": 223,
+      "discoloration-period": 228,
+      "maturity-period": 142
+    },
+    "excluded_unclassifiable_crops": 46,
+    "split_policy": "source-image-group-disjoint repeated 70/15/15 holdouts for model selection"
+  },
+  "weights": [
+    {
+      "file": "tomato_detector.pt",
+      "sha256": "168fc5eb556ebc5a8266b9d934af0c953da221d1de8ab41fb9bcb7f736bafabd",
+      "names": {
+        "0": "tomato"
+      }
+    },
+    {
+      "file": "tomato_ripeness_classifier.pt",
+      "sha256": "934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c",
+      "names": {
+        "0": "discoloration-period",
+        "1": "green-maturity-period",
+        "2": "immature-period",
+        "3": "maturity-period"
+      }
+    }
+  ]
+}
