@@ -13,6 +13,10 @@ class AppTests(unittest.TestCase):
         command = build_command(sys.executable, 'images', 'map', 'out', 'det', 'cls', '.25', '0', classifier_imgsz='224')
         self.assertEqual(command[command.index('--classifier-imgsz')+1], '224')
 
+    def test_camera_yaw_offset_is_forwarded(self):
+        command = build_command(sys.executable, 'images', 'map', 'out', 'det', 'cls', '.25', '0', camera_yaw_offset_deg='-90')
+        self.assertEqual(command[command.index('--camera-yaw-offset-deg')+1], '-90')
+
     def test_start_is_guarded_before_worker_launch(self):
         app = PrmsApp.__new__(PrmsApp)
         app.busy = False

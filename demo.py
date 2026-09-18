@@ -4,6 +4,7 @@ import argparse
 import json
 import hashlib
 import importlib.metadata
+import math
 import re
 import sys
 import time
@@ -40,6 +41,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--map-width-m", type=float, default=35.0)
     parser.add_argument("--row-offset-m", type=float, default=1.15, help="Assumed camera-to-row distance when depth is unavailable")
     parser.add_argument("--camera-height-m", type=float, default=1.15)
+    parser.add_argument("--camera-yaw-offset-deg", type=float, default=0.0,
+                        help="Calibrated native panorama forward-axis offset from robot forward, in degrees")
     parser.add_argument("--export-six-faces", action="store_true")
     parser.add_argument("--range-manifest", help="Registered radial-range NPY maps and synchronization metadata")
     parser.add_argument("--sync-tolerance-s", type=float, default=.05)
@@ -64,6 +67,8 @@ def run(args: argparse.Namespace) -> Path:
     started = time.perf_counter()
     if args.row_tolerance_m <= 0 or args.map_width_m <= 0 or args.row_offset_m <= 0:
         raise ValueError("Map, row distance and row tolerance must be positive")
+    if not math.isfinite(args.camera_yaw_offset_deg):
+        raise ValueError("Camera yaw offset must be finite")
     if args.range_manifest and not args.pose_csv:
         raise ValueError("Measured range requires matched camera poses via --pose-csv")
     range_evidence = RangeEvidence(args.range_manifest, args.sync_tolerance_s) if args.range_manifest else None
@@ -76,6 +81,7 @@ def run(args: argparse.Namespace) -> Path:
     if not all_images:
         raise FileNotFoundError(f"No panoramic images found in: {input_dir}")
     selected = _sample(all_images, args.max_frames)
+    camera_yaw_offset_rad = math.radians(args.camera_yaw_offset_deg)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     view_dir = output_dir / "views"
@@ -112,9 +118,11 @@ def run(args: argparse.Namespace) -> Path:
             raise KeyError(f"No matching pose for frame: {panorama_path.name}")
         used_poses.append(pose)
         with Image.open(panorama_path) as panorama:
-            sides = extract_side_views(panorama, args.face_size)
+            sides = extract_side_views(panorama, args.face_size, camera_yaw_offset_rad=camera_yaw_offset_rad)
             if args.export_six_faces:
-                for face, image in extract_all_faces(panorama, args.face_size).items():
+                for face, image in extract_all_faces(
+                    panorama, args.face_size, camera_yaw_offset_rad=camera_yaw_offset_rad
+                ).items():
                     image.save(view_dir / f"{_safe_stem(panorama_path)}_{face}.jpg", quality=93)
         projection_end = time.perf_counter()
         stem = _safe_stem(panorama_path)
@@ -216,6 +224,7 @@ def run(args: argparse.Namespace) -> Path:
         "map_width_m": args.map_width_m,
         "row_offset_m": args.row_offset_m,
         "camera_height_m": args.camera_height_m,
+        "camera_yaw_offset_deg": args.camera_yaw_offset_deg,
         "confidence": args.confidence,
         "max_frames": args.max_frames,
         "export_six_faces": args.export_six_faces,

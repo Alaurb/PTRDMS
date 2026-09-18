@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 
@@ -64,28 +65,51 @@ def _bilinear_remap(image: np.ndarray, map_x: np.ndarray, map_y: np.ndarray) -> 
     return np.clip(top * (1.0 - wy) + bottom * wy, 0, 255).astype(np.uint8)
 
 
-def extract_cube_face(panorama: Image.Image, side: str, face_size: int = 720) -> Image.Image:
-    """Project an equirectangular panorama to a 90-degree cubemap face."""
+def extract_cube_face(
+    panorama: Image.Image,
+    side: str,
+    face_size: int = 720,
+    *,
+    camera_yaw_offset_rad: float = 0.0,
+) -> Image.Image:
+    """Project an equirectangular panorama to a robot-aligned 90-degree cube face.
+
+    ``camera_yaw_offset_rad`` is the native panorama forward-axis bearing relative
+    to the robot-forward axis, obtained from camera-extrinsic calibration.
+    """
     if face_size < 64:
         raise ValueError("face_size must be at least 64 pixels")
+    if not math.isfinite(camera_yaw_offset_rad):
+        raise ValueError("camera_yaw_offset_rad must be finite")
     source = np.asarray(panorama.convert("RGB"), dtype=np.float32)
     height, width = source.shape[:2]
     x, y, z = _face_vectors(side, face_size)
-    longitude = np.arctan2(x, z)
+    # Remove the native camera offset so requested face names stay robot-relative.
+    longitude = np.arctan2(x, z) - camera_yaw_offset_rad
     latitude = np.arcsin(y)
     map_x = (longitude + np.pi) / (2.0 * np.pi) * width
     map_y = (0.5 - latitude / np.pi) * height
     return Image.fromarray(_bilinear_remap(source, map_x, map_y), mode="RGB")
 
 
-def extract_side_views(panorama: Image.Image, face_size: int = 720) -> dict[str, Image.Image]:
+def extract_side_views(
+    panorama: Image.Image,
+    face_size: int = 720,
+    *,
+    camera_yaw_offset_rad: float = 0.0,
+) -> dict[str, Image.Image]:
     return {
-        "left": extract_cube_face(panorama, "left", face_size),
-        "right": extract_cube_face(panorama, "right", face_size),
+        "left": extract_cube_face(panorama, "left", face_size, camera_yaw_offset_rad=camera_yaw_offset_rad),
+        "right": extract_cube_face(panorama, "right", face_size, camera_yaw_offset_rad=camera_yaw_offset_rad),
     }
 
 
-def extract_all_faces(panorama: Image.Image, face_size: int = 720) -> dict[str, Image.Image]:
+def extract_all_faces(
+    panorama: Image.Image,
+    face_size: int = 720,
+    *,
+    camera_yaw_offset_rad: float = 0.0,
+) -> dict[str, Image.Image]:
     """Six computed perspective projections, not crops or camera-supplied faces."""
-    return {side: extract_cube_face(panorama, side, face_size)
+    return {side: extract_cube_face(panorama, side, face_size, camera_yaw_offset_rad=camera_yaw_offset_rad)
             for side in ("front", "right", "back", "left", "top", "bottom")}

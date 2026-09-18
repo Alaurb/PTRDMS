@@ -30,6 +30,7 @@ def build_command(
     range_manifest: str = "",
     export_six_faces: bool = True,
     classifier_imgsz: str = "",
+    camera_yaw_offset_deg: str = "0",
 ) -> list[str]:
     """Create a transparent command line for a GUI processing run."""
     command = [
@@ -60,6 +61,8 @@ def build_command(
         command.append("--export-six-faces")
     if classifier_imgsz:
         command.extend(["--classifier-imgsz", classifier_imgsz])
+    if camera_yaw_offset_deg.strip():
+        command.extend(["--camera-yaw-offset-deg", camera_yaw_offset_deg])
     return command
 
 
@@ -79,6 +82,7 @@ class PrmsApp:
         self.output_dir = StringVar(value=str(ROOT / "outputs" / "desktop_run"))
         self.pose_csv = StringVar()
         self.range_manifest = StringVar()
+        self.camera_yaw_offset_deg = StringVar(value="0")
         self.detector_weights = StringVar(value=str(ROOT / "models" / "tomato_detector.pt"))
         self.classifier_weights = StringVar(value=str(ROOT / "models" / "tomato_ripeness_classifier.pt"))
         self.confidence = StringVar(value="0.25")
@@ -97,11 +101,13 @@ class PrmsApp:
         self._path_row(frame, 2, "Output folder", self.output_dir, self._choose_output)
         self._path_row(frame, 3, "Camera pose CSV (optional)", self.pose_csv, self._choose_file)
         self._path_row(frame, 4, "Range manifest (optional)", self.range_manifest, self._choose_file)
-        self._path_row(frame, 5, "Tomato detector weights", self.detector_weights, self._choose_file)
-        self._path_row(frame, 6, "Ripeness classifier weights", self.classifier_weights, self._choose_file)
+        ttk.Label(frame, text="Camera yaw offset (deg)").grid(row=5, column=0, sticky="w", pady=3)
+        ttk.Entry(frame, textvariable=self.camera_yaw_offset_deg).grid(row=5, column=1, sticky="ew", padx=(10, 8), pady=3)
+        self._path_row(frame, 6, "Tomato detector weights", self.detector_weights, self._choose_file)
+        self._path_row(frame, 7, "Ripeness classifier weights", self.classifier_weights, self._choose_file)
 
         options = ttk.Frame(frame)
-        options.grid(row=7, column=0, columnspan=3, sticky="ew", pady=(8, 8))
+        options.grid(row=8, column=0, columnspan=3, sticky="ew", pady=(8, 8))
         ttk.Label(options, text="Confidence").grid(row=0, column=0, sticky="w")
         ttk.Entry(options, textvariable=self.confidence, width=8).grid(row=0, column=1, padx=(6, 18))
         ttk.Label(options, text="Frames (0 = all)").grid(row=0, column=2, sticky="w")
@@ -111,17 +117,17 @@ class PrmsApp:
         ttk.Entry(options, textvariable=self.classifier_imgsz, width=8).grid(row=1, column=2, sticky="w")
 
         actions = ttk.Frame(frame)
-        actions.grid(row=8, column=0, columnspan=3, sticky="ew")
+        actions.grid(row=9, column=0, columnspan=3, sticky="ew")
         self.run_button = ttk.Button(actions, text="Run detection and mapping", command=self.run_inference)
         self.run_button.grid(row=0, column=0, padx=(0, 8))
         ttk.Button(actions, text="Replay included results", command=self.replay).grid(row=0, column=1, padx=(0, 8))
         ttk.Button(actions, text="Verify included data", command=self.verify).grid(row=0, column=2, padx=(0, 8))
         ttk.Button(actions, text="Open latest result", command=self.open_result).grid(row=0, column=3)
 
-        ttk.Label(frame, textvariable=self.status).grid(row=9, column=0, columnspan=3, sticky="w", pady=(12, 4))
+        ttk.Label(frame, textvariable=self.status).grid(row=10, column=0, columnspan=3, sticky="w", pady=(12, 4))
         self.log = Text(frame, height=17, wrap="word", state="disabled")
-        self.log.grid(row=10, column=0, columnspan=3, sticky="nsew")
-        frame.rowconfigure(10, weight=1)
+        self.log.grid(row=11, column=0, columnspan=3, sticky="nsew")
+        frame.rowconfigure(11, weight=1)
         self.root.after(100, self._drain_messages)
 
     def _path_row(self, parent: ttk.Frame, row: int, label: str, variable: StringVar, chooser) -> None:
@@ -155,11 +161,12 @@ class PrmsApp:
             confidence = float(self.confidence.get())
             frames = int(self.max_frames.get())
             classifier_size = int(self.classifier_imgsz.get()) if self.classifier_imgsz.get().strip() else 224
+            yaw_offset = float(self.camera_yaw_offset_deg.get())
         except ValueError:
             messagebox.showerror("Invalid options", "Confidence must be a number; frames and classifier size must be integers.")
             return False
-        if not 0.0 <= confidence <= 1.0 or frames < 0 or classifier_size < 32:
-            messagebox.showerror("Invalid options", "Confidence must be between 0 and 1; frames must be nonnegative; classifier size must be at least 32.")
+        if not 0.0 <= confidence <= 1.0 or frames < 0 or classifier_size < 32 or not -360 <= yaw_offset <= 360:
+            messagebox.showerror("Invalid options", "Confidence must be 0–1, frames nonnegative, classifier size at least 32, and yaw offset within -360 to 360 degrees.")
             return False
         return True
 
@@ -182,7 +189,7 @@ class PrmsApp:
             sys.executable, self.input_dir.get(), self.map_path.get(), self.output_dir.get(),
             self.detector_weights.get(), self.classifier_weights.get(), self.confidence.get(), self.max_frames.get(),
             self.pose_csv.get(), self.range_manifest.get(), self.export_six_faces.get(),
-            self.classifier_imgsz.get().strip(),
+            self.classifier_imgsz.get().strip(), self.camera_yaw_offset_deg.get().strip(),
         )
         self.pending_result = Path(self.output_dir.get()) / "index.html"
         self._start(command, "Running two-stage detection and spatial mapping…")

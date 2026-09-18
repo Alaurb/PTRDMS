@@ -6,6 +6,10 @@ No navigation or ROS installation is required. PTRDMS does not navigate the robo
 
 Pass `--pose-csv poses.csv`. Header: `frame,x,y,z,yaw,route`. One unique row per input image; frame is the image filename. Coordinates are metres in a shared Cartesian map frame, yaw is radians counterclockwise about +z, +x is camera-forward at zero yaw and +y left. z is the camera optical-centre height, not robot base height. roll and pitch are assumed zero. An upstream adapter must apply camera extrinsics and match each pose to image acquisition time. This loader does not interpolate raw odometry timestamps. `route` is an optional session/row identifier. Map image coordinates use a bottom-left metric origin, with image v pointing downward; supply a compatible map image and `--map-width-m` scale.
 
+## Panorama yaw extrinsic
+
+Pass `--camera-yaw-offset-deg` to align the native equirectangular forward axis with the robot-forward direction used by each pose. The offset is subtracted during panorama sampling, so the selected logical `left` and `right` faces stay robot-relative. A `-90` degree setting, for example, selects the native panorama's front/back views as robot-relative left/right views. This is a camera-mount calibration value, not a detector setting; it must be recorded with the run and applied consistently when registered range maps are generated.
+
 Missing poses generate a clearly tagged `synthetic_map_path` for display only. Supplying a CSV does not prove its measurements are accurate.
 
 ## Registered radial ranges

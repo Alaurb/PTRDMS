@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ripeness_demo.detectors import ColorShapeDetector, Detection, _merge_box_candidates, class_order_for
 from ripeness_demo.mapping import Pose, SpatialDetection, generate_demo_poses, project_detection
-from ripeness_demo.panorama import extract_side_views
+from ripeness_demo.panorama import extract_cube_face, extract_side_views
 from ripeness_demo.report import HTML_TEMPLATE, _plant_columns
 
 
@@ -24,6 +24,12 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(sides["left"].size, (96, 96))
         self.assertEqual(sides["right"].size, (96, 96))
         self.assertFalse(np.array_equal(np.asarray(sides["left"]), np.asarray(sides["right"])))
+
+    def test_camera_yaw_offset_aligns_logical_left_with_native_front(self):
+        panorama = Image.fromarray(np.tile(np.arange(240, dtype=np.uint8), (120, 1))).convert("RGB")
+        native_front = extract_cube_face(panorama, "front", 96)
+        robot_left = extract_cube_face(panorama, "left", 96, camera_yaw_offset_rad=-math.pi / 2)
+        self.assertTrue(np.array_equal(np.asarray(native_front), np.asarray(robot_left)))
 
     def test_color_detector_marks_yellow_round_region_harvest_ready(self):
         image = Image.new("RGB", (240, 240), "#193b24")
