@@ -107,7 +107,7 @@ The classes are defined in `class_mapping.md`. Crop identifiers and source-group
 
 ## License and source-material boundary
 
-This dataset is released under CC BY 4.0. Cite the associated DOI: **DOI pending Zenodo publication**. The original panoramas, site maps, derived archived demonstrations, model weights, and other raw acquisition data are not included.
+This dataset is released under CC BY 4.0. Cite the associated DOI: **[10.5281/zenodo.22822984](https://doi.org/10.5281/zenodo.22822984)**. The original panoramas, site maps, derived archived demonstrations, model weights, and other raw acquisition data are not included.
 
 ## Reproducibility boundary
 
