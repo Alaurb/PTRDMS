@@ -4,7 +4,7 @@
 
 The maturity classifier assigns a reviewed tomato crop to one of four visual classes: immature period, green-maturity period, discoloration period, or maturity period. The corpus contains 815 usable crops from 210 source-image groups: 222 immature, 223 green-maturity, 228 discoloration, and 142 maturity. Forty-six crops labelled `unclassifiable` were excluded from training, validation, and testing.
 
-All crops derived from the same source image were assigned to the same split. The reviewed crop images, annotations, five fixed splits, and exclusion list are published separately as the [Four-Stage Tomato Ripeness Crop Dataset for PTRDMS](https://doi.org/10.5281/zenodo.22822984); this repository publishes the deployed weight and the evaluation record, not the crop corpus.
+All crops derived from the same source image were assigned to the same split. The reviewed crop images, annotations, five fixed splits, and exclusion list are published separately as the [Four-Stage Tomato Ripeness Crop Dataset for PTRDMS](https://doi.org/10.5281/zenodo.22822983); this repository publishes the deployed weight and the evaluation record, not the crop corpus.
 
 ## Model-selection protocol
 

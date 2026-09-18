@@ -27,7 +27,7 @@ The panorama is geometrically reprojected into six faces; only the left and righ
 
 The supplied two-stage model uses a one-class YOLO tomato detector followed by a YOLOv8n classification model. The classifier has exactly four output labels: `immature-period`, `green-maturity-period`, `discoloration-period`, and `maturity-period`. Their correspondence to the manuscript terminology is documented in [the class mapping](docs/four_stage_class_mapping.md).
 
-The shipped classifier is trained from all 815 manually reviewed tomato crops after model selection. Its SHA-256 is `934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`. The reviewed crop images, annotations, fixed splits, and exclusion list are published separately as the [Four-Stage Tomato Ripeness Crop Dataset for PTRDMS](https://doi.org/10.5281/zenodo.22822984). Model-selection results, split safeguards, and limitations are reported in [the four-stage evaluation](docs/four_stage_maturity_evaluation.md).
+The shipped classifier is trained from all 815 manually reviewed tomato crops after model selection. Its SHA-256 is `934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`. The reviewed crop images, annotations, fixed splits, and exclusion list are published separately as the [Four-Stage Tomato Ripeness Crop Dataset for PTRDMS](https://doi.org/10.5281/zenodo.22822983). Model-selection results, split safeguards, and limitations are reported in [the four-stage evaluation](docs/four_stage_maturity_evaluation.md).
 
 ## Run the workflow
 

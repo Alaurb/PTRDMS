@@ -21,6 +21,7 @@ from PIL import Image
 
 
 SEEDS = tuple(range(20260915, 20260920))
+REPLICATE_FILENAMES = tuple(f"replicate_{index:02d}.csv" for index in range(1, len(SEEDS) + 1))
 CLASSES = (
     "immature-period",
     "green-maturity-period",
@@ -95,19 +96,19 @@ def copy_without_metadata(source: Path, target: Path) -> None:
 
 
 def release_readme() -> str:
-    return """# Tomato Ripeness Four-Stage Crops v1.0
+    return """# Tomato Ripeness Four-Stage Crops v1.1
 
 This dataset accompanies *Ripeness Monitoring System for Open Facility Environments Based on a Quadruped Robot and Panoramic Vision*. It contains 815 manually reviewed, fruit-level tomato crop images for four visual maturity stages. It is not an end-to-end panorama benchmark and cannot support claims about tomato detection accuracy, unique-fruit counting, spatial accuracy, internal maturity, firmness, soluble solids, or harvest readiness.
 
 ## Contents
 
-`crops/` contains 815 materialized PNG crop images. `annotations.csv` gives the reviewed class and an anonymized source-group identifier for each crop. `splits/` contains the five source-group-disjoint repeated 70/15/15 holdouts reported in the associated study. `excluded_unclassifiable.csv` records the 46 reviewed crops excluded before every split; they are not a model class and their image pixels are not distributed. `MANIFEST.csv` records SHA-256 and byte size for every package file except itself.
+`crops/` contains 815 materialized PNG crop images. `annotations.csv` gives the reviewed class and an anonymized source-group identifier for each crop. `splits/` contains the five source-group-disjoint repeated 70/15/15 holdouts reported in the associated study, named `replicate_01.csv` through `replicate_05.csv`. `excluded_unclassifiable.csv` records the 46 reviewed crops excluded before every split; they are not a model class and their image pixels are not distributed. `MANIFEST.csv` records SHA-256 and byte size for every package file except itself.
 
 The classes are defined in `class_mapping.md`. Crop identifiers and source-group identifiers are release-local, stable identifiers; they do not disclose source filenames, capture dates, locations, or farm names.
 
 ## License and source-material boundary
 
-This dataset is released under CC BY 4.0. Cite the associated DOI: **[10.5281/zenodo.22822984](https://doi.org/10.5281/zenodo.22822984)**. The original panoramas, site maps, derived archived demonstrations, model weights, and other raw acquisition data are not included.
+This dataset is released under CC BY 4.0. Cite the associated concept DOI: **[10.5281/zenodo.22822983](https://doi.org/10.5281/zenodo.22822983)**. The original panoramas, site maps, derived archived demonstrations, model weights, and other raw acquisition data are not included.
 
 ## Reproducibility boundary
 
@@ -141,6 +142,10 @@ def license_text() -> str:
 
 def changelog() -> str:
     return """# Changelog
+
+## v1.1
+
+The five fixed split files were renamed to the neutral identifiers `replicate_01.csv` through `replicate_05.csv`. Crop pixels, annotations, source-group assignments, and the membership of every split are unchanged from v1.0.
 
 ## v1.0
 
@@ -231,13 +236,15 @@ def main() -> None:
         row["source_group_id"] = canonical_group[name]
     write_csv(output / "annotations.csv", ["crop_id", "source_group_id", "label", "label_index", "review_status"], annotation_rows)
 
-    for seed, records in per_seed.items():
+    for replicate_index, seed in enumerate(SEEDS):
+        replicate_filename = REPLICATE_FILENAMES[replicate_index]
+        records = per_seed[seed]
         split_rows = [
             {"crop_id": crop_id[record["name"]], "label": record["label"],
              "source_group_id": group_id[record["source_group"]], "split": record["split"]}
             for record in sorted(records, key=lambda item: crop_id[item["name"]])
         ]
-        write_csv(splits / f"split_seed{seed}.csv", ["crop_id", "label", "source_group_id", "split"], split_rows)
+        write_csv(splits / replicate_filename, ["crop_id", "label", "source_group_id", "split"], split_rows)
 
     excluded_groups: dict[str, str] = {}
     excluded_rows: list[dict[str, str]] = []
