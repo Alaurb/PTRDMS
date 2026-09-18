@@ -2,7 +2,7 @@
 
 This repository supports the manuscript *Ripeness Monitoring System for Open Facility Environments Based on a Quadruped Robot and Panoramic Vision*. It provides an **offline** workflow that reprojects equirectangular panoramas into perspective views, detects tomatoes on the left and right crop-row views, assigns a four-stage visual ripeness class, and writes annotated observations and a local result viewer.
 
-The repository contains the perception and observation-mapping components only. Navigation, SLAM, gait control, collision avoidance, and real-time robot control are external to this package.
+The repository contains the perception and observation-mapping components only. It **consumes** image-matched localization records from an upstream navigation/localization system to bind panoramas to poses and create a spatial observation map; it does not plan routes, send motion commands, perform SLAM, control gait, or avoid collisions.
 
 ## Processing workflow
 
@@ -56,6 +56,19 @@ python demo.py `
 ```
 
 The user supplies the panorama folder and map image. A run produces `index.html`, projected views, annotated left/right views, `detections.csv`, `trajectory.csv`, `plants.csv`, `tracks.json`, `association_links.json`, `rejected_observations.json`, `summary.json`, `run_config.json`, and `evidence.json`.
+
+For localization-backed mapping, also provide a one-to-one image/pose table and, when available, a registered radial-range manifest:
+
+```powershell
+python demo.py `
+  --input <panorama-folder> `
+  --map <map-image> `
+  --pose-csv <image_matched_poses.csv> `
+  --range-manifest <registered_ranges.json> `
+  --output outputs/mapping
+```
+
+`--pose-csv` binds each panorama filename to its upstream camera pose. `--range-manifest` is required for the depth-backed nearest-row gate and candidate cross-frame fruit association; the two inputs are validated together before mapping proceeds.
 
 ## Data and evidence boundaries
 

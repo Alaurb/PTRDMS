@@ -1,6 +1,6 @@
 # External data interfaces
 
-No navigation or ROS installation is required. Localization and robot control remain external.
+No navigation or ROS installation is required. PTRDMS does not navigate the robot, but it consumes image-matched localization records produced upstream to bind panoramas to map poses. Localization and robot control remain external.
 
 ## Camera poses
 
