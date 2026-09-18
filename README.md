@@ -55,7 +55,7 @@ python demo.py `
   --max-frames 0
 ```
 
-The user supplies the panorama folder and map image. A run produces `index.html`, projected views, annotated left/right views, `detections.csv`, `trajectory.csv`, `plants.csv`, `tracks.json`, `summary.json`, `run_config.json`, and `evidence.json`.
+The user supplies the panorama folder and map image. A run produces `index.html`, projected views, annotated left/right views, `detections.csv`, `trajectory.csv`, `plants.csv`, `tracks.json`, `association_links.json`, `rejected_observations.json`, `summary.json`, `run_config.json`, and `evidence.json`.
 
 ## Data and evidence boundaries
 
@@ -66,7 +66,8 @@ The default example uses a synthetic path generated from frame order and an assu
 - an image observation is not automatically a unique tomato;
 - left/right view selection alone does not prove exclusion of background-row fruit;
 - pixel vertical position is retained, but metric fruit height requires calibrated geometry, measured pose, and registered range;
-- range filtering and cross-frame association are only enabled when the required measured inputs are supplied and still require independent validation;
+- nearest-row gating is enabled only when `--range-manifest` supplies calibrated, registered radial ranges alongside `--pose-csv`; without range input it is disabled and `summary.json` records `nearest_row_filter="not_verified_no_depth"` and `association_status="disabled_no_measured_geometry"`;
+- cross-frame association additionally requires every processed pose to come from `pose_csv` and every associated detection to have `position_source="measured_radial_range"`; its outputs remain candidates requiring independent validation;
 - the workflow is offline batch processing, not a real-time end-to-end deployment claim.
 
 External pose and range interfaces are described in [docs/interfaces.md](docs/interfaces.md). The one-class detector evaluation is in [docs/detector_evaluation.md](docs/detector_evaluation.md), and source/data provenance is in [docs/provenance.md](docs/provenance.md).

@@ -88,6 +88,8 @@ class CoreTests(unittest.TestCase):
     def test_html_report_is_english_only(self):
         self.assertIn('<html lang="en">', HTML_TEMPLATE)
         self.assertIn("3D tomato-bunch view", HTML_TEMPLATE)
+        self.assertIn("let coordinateMode=true", HTML_TEMPLATE)
+        self.assertIn("Estimated coordinates", HTML_TEMPLATE)
         self.assertIn("not reconstructed stems", HTML_TEMPLATE)
         self.assertIsNone(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", HTML_TEMPLATE))
 

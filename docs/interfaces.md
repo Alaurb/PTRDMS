@@ -18,7 +18,7 @@ Pass `--range-manifest ranges.json` together with poses. Example manifest:
 
 NPY paths are relative to the manifest. Each array must match its projected view height and width and contain radial distance along the pixel ray, not unconverted camera z-depth. Arrays must already be calibrated and registered to the cube-face convention. Metadata timestamps are checked against `--sync-tolerance-s`; this checks supplied metadata consistency, not calibration accuracy or image/pose provenance. This example is a schema, not supplied field data.
 
-The central bounding-box region supplies a range statistic. Leaf occlusion can still corrupt it. A lateral band around the assumed nearest-row distance is a geometric gate, not a semantic guarantee. Candidate associations require supplied poses and ranges and remain unverified without ground truth.
+The central bounding-box region supplies a range statistic. Leaf occlusion can still corrupt it. The lateral nearest-row band is a geometric gate, not a semantic guarantee, and it is applied only when `--range-manifest` is supplied (the guarded branch is `demo.py:run()`, `if ranges is not None`, around the projection loop). It requires calibrated, registered radial ranges together with `--pose-csv`; without range input the gate is not applied, `summary.json` records `nearest_row_filter="not_verified_no_depth"`, and association status is `disabled_no_measured_geometry`. Candidate associations additionally require every processed pose to be sourced from the CSV and every retained detection to use a measured radial range; they remain unverified without ground truth.
 
 ## Outputs and ROS compatibility
 
