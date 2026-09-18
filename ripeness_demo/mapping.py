@@ -193,7 +193,7 @@ def project_detection(
     view_size: tuple[int, int],
     map_size: tuple[int, int],
     map_width_m: float = 35.0,
-    row_offset_m: float = 1.15,
+    row_offset_m: float = 1.20,
     camera_height_m: float = 1.15,
     fov_degrees: float = 90.0,
     annotated_image: str = "",

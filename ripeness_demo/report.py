@@ -19,7 +19,7 @@ def _plant_columns(
     detections: list[SpatialDetection],
     map_size: tuple[int, int] | None = None,
     map_width_m: float = 35.0,
-    row_offset_m: float = 1.15,
+    row_offset_m: float = 1.20,
     taxonomy: str | None = None,
 ) -> list[dict[str, object]]:
     grouped: dict[tuple[str, str], list[SpatialDetection]] = {}
@@ -77,7 +77,7 @@ def _rgb(hex_color: str) -> tuple[int, int, int]:
     return tuple(int(value[index : index + 2], 16) for index in (0, 2, 4))
 
 
-def write_csv_files(output_dir: Path, poses: list[Pose], detections: list[SpatialDetection], row_offset_m: float = 1.15, taxonomy: str | None = None) -> None:
+def write_csv_files(output_dir: Path, poses: list[Pose], detections: list[SpatialDetection], row_offset_m: float = 1.20, taxonomy: str | None = None) -> None:
     with (output_dir / "trajectory.csv").open("w", encoding="utf-8-sig", newline="") as handle:
         fields = list(asdict(poses[0]).keys()) if poses else ["frame", "x", "y", "z", "yaw", "map_px", "map_py", "source", "route"]
         writer = csv.DictWriter(handle, fieldnames=fields)
@@ -388,7 +388,7 @@ def write_html_report(
     map_width_m: float,
     map_height_m: float,
     map_size: tuple[int, int],
-    row_offset_m: float = 1.15,
+    row_offset_m: float = 1.20,
     evidence: dict[str, object] | None = None,
 ) -> None:
     data = {

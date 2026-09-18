@@ -55,7 +55,7 @@ class CoreTests(unittest.TestCase):
         detection = Detection("mature", 0.9, (45, 45, 55, 55), "test")
         point = project_detection(detection, "left", pose, (101, 101), (400, 200), map_width_m=20)
         self.assertAlmostEqual(point.x, 5.0, places=4)
-        self.assertGreater(point.y, 5.0)
+        self.assertAlmostEqual(point.y, 6.2, places=4)
         self.assertAlmostEqual(point.z, 1.15, places=4)
 
     def test_decimal_panorama_names_remain_one_contiguous_route(self):

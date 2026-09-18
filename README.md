@@ -68,7 +68,7 @@ python demo.py `
   --output outputs/mapping
 ```
 
-`--pose-csv` binds each panorama filename to its upstream camera pose. `--range-manifest` is required for the depth-backed nearest-row gate and candidate cross-frame fruit association; the two inputs are validated together before mapping proceeds.
+`--pose-csv` binds each panorama filename (with a filename-stem fallback) to its upstream camera pose. The loader does not read a timestamp column or perform timestamp/nearest-neighbour matching; any synchronization of raw sensor streams must be completed upstream before exporting this image-keyed table. `--range-manifest` is required for the depth-backed nearest-row gate and candidate cross-frame fruit association; the two inputs are validated together before mapping proceeds.
 
 The physical meanings of `left` and `right` depend on the equirectangular camera's yaw extrinsic. Supply its calibrated native-forward offset with `--camera-yaw-offset-deg`; for example, a `-90` degree offset makes a native `front/back` pair the logical robot-relative `left/right` pair. This value is written to `run_config.json` and must also be used when producing any registered range maps.
 

@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--face-size", type=int, default=1440)
     parser.add_argument("--max-frames", type=int, default=24, help="Maximum frames to process; 0 processes every image")
     parser.add_argument("--map-width-m", type=float, default=35.0)
-    parser.add_argument("--row-offset-m", type=float, default=1.15, help="Assumed camera-to-row distance when depth is unavailable")
+    parser.add_argument("--row-offset-m", type=float, default=1.20, help="Assumed camera-to-row distance when depth is unavailable")
     parser.add_argument("--camera-height-m", type=float, default=1.15)
     parser.add_argument("--camera-yaw-offset-deg", type=float, default=0.0,
                         help="Calibrated native panorama forward-axis offset from robot forward, in degrees")

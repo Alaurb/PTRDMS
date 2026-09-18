@@ -4,7 +4,7 @@ No navigation or ROS installation is required. PTRDMS does not navigate the robo
 
 ## Camera poses
 
-Pass `--pose-csv poses.csv`. Header: `frame,x,y,z,yaw,route`. One unique row per input image; frame is the image filename. Coordinates are metres in a shared Cartesian map frame, yaw is radians counterclockwise about +z, +x is camera-forward at zero yaw and +y left. z is the camera optical-centre height, not robot base height. roll and pitch are assumed zero. An upstream adapter must apply camera extrinsics and match each pose to image acquisition time. This loader does not interpolate raw odometry timestamps. `route` is an optional session/row identifier. Map image coordinates use a bottom-left metric origin, with image v pointing downward; supply a compatible map image and `--map-width-m` scale.
+Pass `--pose-csv poses.csv`. Header: `frame,x,y,z,yaw,route`. One unique row per input image; `frame` is the image filename. The loader binds poses by the `frame` string, with a filename-stem fallback; it does not read a timestamp column, match raw streams by timestamp, or interpolate odometry. An upstream adapter must therefore apply camera extrinsics and complete any timestamp synchronization before exporting this image-keyed table. Coordinates are metres in a shared Cartesian map frame, yaw is radians counterclockwise about +z, +x is camera-forward at zero yaw and +y left. z is the camera optical-centre height, not robot base height. roll and pitch are assumed zero. `route` is an optional session/row identifier. Map image coordinates use a bottom-left metric origin, with image v pointing downward; supply a compatible map image and `--map-width-m` scale.
 
 ## Panorama yaw extrinsic
 
