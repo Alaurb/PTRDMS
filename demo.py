@@ -178,7 +178,7 @@ def run(args: argparse.Namespace) -> Path:
                    nearest_row_filter="measured_range_band" if range_evidence else "not_verified_no_depth",
                    association_status="spatial_candidates" if range_evidence else "disabled_no_measured_geometry",
                    candidate_tracks=sum(t["status"] == "association_candidate" for t in tracks), rejected_observations=len(rejected))
-    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8", newline="\n")
+    (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     evidence = build_evidence_manifest(
         summary, used_poses, processing_mode=summary["processing_mode"], range_source=summary["range_source"]
     )

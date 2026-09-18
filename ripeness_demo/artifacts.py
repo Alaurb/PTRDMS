@@ -64,5 +64,5 @@ def build_evidence_manifest(
 
 def write_evidence_manifest(output_dir: Path, manifest: dict[str, object]) -> None:
     (output_dir / "evidence.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n"
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )

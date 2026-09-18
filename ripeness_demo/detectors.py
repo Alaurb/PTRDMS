@@ -69,7 +69,7 @@ CLASS_ALIASES = {
 }
 
 
-@dataclass(slots=True)
+@dataclass
 class Detection:
     class_name: str
     confidence: float

@@ -188,7 +188,7 @@ def write_summary(
         "plant_assignment": "frame_side_proxy",
         "limitations": limitations,
     }
-    (output_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+    (output_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
 
 
@@ -403,4 +403,4 @@ def write_html_report(
         "evidence": evidence or {},
     }
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
-    (output_dir / "index.html").write_text(HTML_TEMPLATE.replace("__DATA__", payload), encoding="utf-8", newline="\n")
+    (output_dir / "index.html").write_text(HTML_TEMPLATE.replace("__DATA__", payload), encoding="utf-8")

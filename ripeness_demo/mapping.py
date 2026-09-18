@@ -12,7 +12,7 @@ from PIL import Image
 from .detectors import Detection
 
 
-@dataclass(slots=True)
+@dataclass
 class Pose:
     frame: str
     x: float
@@ -25,7 +25,7 @@ class Pose:
     route: int | str
 
 
-@dataclass(slots=True)
+@dataclass
 class SpatialDetection:
     frame: str
     side: str
