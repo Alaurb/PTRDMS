@@ -99,6 +99,9 @@ class CoreTests(unittest.TestCase):
         self.assertIn("not reconstructed stems", HTML_TEMPLATE)
         self.assertNotIn("Select a fruit or vine to review", HTML_TEMPLATE)
         self.assertNotIn("Select a fruit circle or green anchor", OBSERVATION_MAP_TEMPLATE)
+        self.assertNotIn("Green Gem observations", HTML_TEMPLATE)
+        self.assertNotIn("Predictions are arranged as observations", HTML_TEMPLATE)
+        self.assertNotIn("Drag to rotate", HTML_TEMPLATE)
         self.assertIsNone(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", HTML_TEMPLATE))
 
 
