@@ -28,4 +28,13 @@ The central bounding-box region supplies a range statistic. Leaf occlusion can s
 
 `detections.csv` retains pixel bounding boxes, view dimensions, predicted class/confidence, x/y/z, position_source and track_id. Pixel vertical centre can be calculated as `(bbox_y1+bbox_y2)/2`. `trajectory.csv` preserves pose provenance. `summary.json` states pose/range assumptions and association status. `tracks.json` and `association_links.json` describe candidate associations. `plants.csv` groups observations by frame and side; it does not count unique plants.
 
-The previous MaturityDetection and MaturityObservationArray schemas are preserved in `interfaces/ros_msgs/` as adapter references. The former ROS CSV publisher and TF-origin placeholder fusion are retired. An adapter must explicitly map CSV xyxy boxes to ROS centre/size fields, preserve acquisition timestamps, and set coordinate provenance. No navigation node or live ROS publisher is included.
+`live_ros.py` provides the optional online ROS1 entry point. It subscribes to
+`sensor_msgs/CompressedImage` panoramas and `geometry_msgs/PoseStamped` poses,
+stores poses by exact `header.stamp`, and accepts one unique nearest pose within
+the configured tolerance for each incoming panorama. The rolling result folder
+uses the same annotated-image, CSV, JSON, and map-report formats as batch mode.
+
+The MaturityDetection and MaturityObservationArray schemas in
+`interfaces/ros_msgs/` remain available as adapter references. An integration
+adapter should preserve acquisition timestamps and coordinate provenance when it
+publishes these messages.

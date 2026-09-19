@@ -1,9 +1,10 @@
 # PTRDMS: Panoramic Tomato Ripeness Detection and Mapping System
 
-PTRDMS is an offline software workflow for tomato-ripeness monitoring from
-equirectangular panoramic images. It reprojects a panorama into perspective
-views, detects tomatoes from robot-relative crop-row views, assigns one of four
-visual ripeness stages, and exports image-linked mapping results for review.
+PTRDMS supports offline batch and online ROS1 workflows for tomato-ripeness
+monitoring from equirectangular panoramic images. It reprojects a panorama into
+perspective views, detects tomatoes from robot-relative crop-row views, assigns
+one of four visual ripeness stages, and exports image-linked mapping results for
+review.
 
 The repository focuses on panoramic perception and observation mapping. It
 accepts image-matched localization records produced by an upstream platform
@@ -37,7 +38,7 @@ are available at [Zenodo: 10.5281/zenodo.22822983](https://doi.org/10.5281/zenod
 The supplied classifier SHA-256 is
 `934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`.
 
-## Run the workflow
+## Offline batch workflow
 
 Create the tested environment:
 
@@ -66,6 +67,32 @@ python demo.py `
 The run creates a local visual report (`index.html`), perspective views,
 annotated detections, `detections.csv`, `trajectory.csv`, spatial-map images,
 and JSON records for downstream analysis.
+
+## Online ROS1 operation
+
+PTRDMS can also process a live ROS1 stream. The online entry point subscribes
+to an equirectangular JPEG topic (`sensor_msgs/CompressedImage`) and a
+localization topic (`geometry_msgs/PoseStamped`), matches each panorama to its
+nearest timestamped pose, and continuously refreshes annotated views, tables,
+and the local map report. Raw panoramic frames are processed in memory.
+
+In a ROS1 environment, source the robot workspace and run:
+
+```bash
+python live_ros.py \
+  --map <map-image> \
+  --image-topic /camera/image/compressed \
+  --pose-topic /robot_pose \
+  --output outputs/online \
+  --detector two-stage \
+  --detector-weights models/tomato_detector.pt \
+  --classifier-weights models/tomato_ripeness_classifier.pt
+```
+
+Use `--pose-tolerance-s` to configure the accepted image-to-pose timestamp
+window and `--report-every` to set the report-refresh interval.
+
+## Localization-aware mapping
 
 For location-aware mapping, provide an image/pose table from the upstream
 localization workflow:
