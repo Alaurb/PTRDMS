@@ -17,6 +17,16 @@ class AppTests(unittest.TestCase):
         command = build_command(sys.executable, 'images', 'map', 'out', 'det', 'cls', '.25', '0', camera_yaw_offset_deg='-90')
         self.assertEqual(command[command.index('--camera-yaw-offset-deg')+1], '-90')
 
+    def test_timestamp_pose_mode_is_forwarded(self):
+        command = build_command(
+            sys.executable, "images", "map", "out", "det", "cls", ".25", "0",
+            pose_csv="poses.csv", pose_match_mode="timestamp", frame_times_csv="frame_times.csv",
+            pose_timestamp_tolerance_s="0.12",
+        )
+        self.assertEqual(command[command.index("--pose-match-mode") + 1], "timestamp")
+        self.assertEqual(command[command.index("--frame-times-csv") + 1], "frame_times.csv")
+        self.assertEqual(command[command.index("--pose-timestamp-tolerance-s") + 1], "0.12")
+
     def test_start_is_guarded_before_worker_launch(self):
         app = PrmsApp.__new__(PrmsApp)
         app.busy = False

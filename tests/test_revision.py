@@ -8,7 +8,13 @@ import numpy as np
 from PIL import Image
 
 from ripeness_demo.detectors import Detection
-from ripeness_demo.mapping import Pose, load_pose_csv, project_detection
+from ripeness_demo.mapping import (
+    Pose,
+    load_frame_times_csv,
+    load_pose_csv,
+    match_poses_by_timestamp,
+    project_detection,
+)
 from ripeness_demo.panorama import extract_all_faces
 from ripeness_demo.evidence import RangeEvidence, foreground_range, associate
 from scripts.evaluate_spatial import evaluate
@@ -72,6 +78,72 @@ class RevisionTests(unittest.TestCase):
             self.assertEqual(load_pose_csv(file,Image.new("RGB",(100,100)))["a.jpg"].route,"rowA")
             file.write_text(file.read_text()+"a.jpg,0,0,1.2,0,rowA\n")
             with self.assertRaises(ValueError): load_pose_csv(file,Image.new("RGB",(100,100)))
+
+    def test_timestamp_pose_matching_is_unique_and_fails_closed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            pose_csv = root / "poses.csv"
+            pose_csv.write_text(
+                "timestamp_s,x,y,z,yaw,route\n"
+                "10.000,1,0,1.15,0,rowA\n"
+                "10.100,2,0,1.15,0,rowA\n"
+            )
+            frame_csv = root / "frame_times.csv"
+            frame_csv.write_text("frame,timestamp_s\na.jpg,10.010\nb.jpg,10.090\n")
+            lookup = load_pose_csv(pose_csv, Image.new("RGB", (100, 100)), allow_timestamp_only=True)
+            matched = match_poses_by_timestamp(
+                [Path("a.jpg"), Path("b.jpg")], lookup, load_frame_times_csv(frame_csv), .02
+            )
+            self.assertEqual(matched["a.jpg"].x, 1)
+            self.assertEqual(matched["b.jpg"].x, 2)
+            self.assertEqual(matched["a.jpg"].timestamp_s, 10.000)
+            self.assertEqual(matched["a.jpg"].frame_timestamp_s, 10.010)
+            self.assertAlmostEqual(matched["a.jpg"].match_delta_s, .010)
+            with self.assertRaises(ValueError):
+                match_poses_by_timestamp([Path("a.jpg")], lookup, load_frame_times_csv(frame_csv), .005)
+            pose_csv.write_text(
+                "timestamp_s,x,y,z,yaw,route\n"
+                "10.000,1,0,1.15,0,rowA\n"
+                "10.020,2,0,1.15,0,rowA\n"
+            )
+            ambiguous = load_pose_csv(pose_csv, Image.new("RGB", (100, 100)), allow_timestamp_only=True)
+            with self.assertRaises(ValueError):
+                match_poses_by_timestamp([Path("a.jpg")], ambiguous, {"a.jpg": 10.010}, .02)
+
+    def test_pipeline_accepts_timestamp_pose_mode(self):
+        import demo
+
+        class FixtureDetector:
+            name = "test_fixture_not_yolo"
+
+            def detect(self, image):
+                return [Detection("mature", .9, (40, 40, 60, 60), self.name)]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "input").mkdir()
+            Image.new("RGB", (202, 101), "green").save(root / "input" / "a.jpg")
+            Image.new("RGB", (202, 101), "green").save(root / "input" / "b.jpg")
+            Image.new("RGB", (100, 100), "white").save(root / "map.png")
+            (root / "poses.csv").write_text(
+                "timestamp_s,x,y,z,yaw,route\n10.000,1,2,1.15,0,rowA\n10.100,2,2,1.15,0,rowA\n"
+            )
+            (root / "frame_times.csv").write_text("frame,timestamp_s\na.jpg,10.010\nb.jpg,10.090\n")
+            argv = [
+                "demo.py", "--input", str(root / "input"), "--map", str(root / "map.png"),
+                "--output", str(root / "out"), "--pose-csv", str(root / "poses.csv"),
+                "--pose-match-mode", "timestamp", "--frame-times-csv", str(root / "frame_times.csv"),
+                "--pose-timestamp-tolerance-s", ".02", "--face-size", "101",
+            ]
+            with patch("sys.argv", argv), patch("demo.build_detector", return_value=FixtureDetector()):
+                demo.run(demo.parse_args())
+            config = json.loads((root / "out" / "run_config.json").read_text())
+            trajectory = (root / "out" / "trajectory.csv").read_text(encoding="utf-8-sig")
+            self.assertEqual(config["pose_match_mode"], "timestamp")
+            self.assertIn("frame_timestamp_s", trajectory)
+            self.assertIn("match_delta_s", trajectory)
+            self.assertIn("a.jpg", trajectory)
+            self.assertIn("b.jpg", trajectory)
 
     def test_six_faces(self):
         faces=extract_all_faces(Image.new("RGB",(256,128),"red"),64)

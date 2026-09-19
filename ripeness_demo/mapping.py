@@ -23,6 +23,12 @@ class Pose:
     map_py: float
     source: str
     route: int | str
+    # Timestamp reported by the localization/pose source, when supplied.
+    timestamp_s: float | None = None
+    # Timestamp reported for the panorama frame, in timestamp matching mode.
+    frame_timestamp_s: float | None = None
+    # Absolute source-pose/frame timestamp difference, in timestamp matching mode.
+    match_delta_s: float | None = None
 
 
 @dataclass
@@ -146,18 +152,37 @@ def generate_demo_poses(
     return poses
 
 
+def _timestamp_from_row(row: dict[str, str], row_index: int, kind: str) -> float | None:
+    value = next((row.get(name) for name in ("timestamp_s", "timestamp", "time_s", "time") if row.get(name)), None)
+    if value is None:
+        return None
+    try:
+        timestamp_s = float(value)
+    except ValueError as exc:
+        raise ValueError(f"Invalid {kind} timestamp in CSV row {row_index}: {value!r}") from exc
+    if not math.isfinite(timestamp_s):
+        raise ValueError(f"Non-finite {kind} timestamp in CSV row {row_index}")
+    return timestamp_s
+
+
 def load_pose_csv(
-    csv_path: str | Path, map_image: Image.Image, map_width_m: float = 35.0
+    csv_path: str | Path,
+    map_image: Image.Image,
+    map_width_m: float = 35.0,
+    allow_timestamp_only: bool = False,
 ) -> dict[str, Pose]:
-    """Load frame,x,y,z,yaw pose rows. yaw is in radians; x/y/z are metres."""
+    """Load pose rows keyed by frame, optionally accepting timestamp-only rows."""
     width_px, height_px = map_image.size
     scale = map_width_m / width_px
     output: dict[str, Pose] = {}
     with Path(csv_path).open("r", encoding="utf-8-sig", newline="") as handle:
         for row_index, row in enumerate(csv.DictReader(handle), start=2):
             frame = (row.get("frame") or row.get("image") or row.get("filename") or "").strip()
+            timestamp_s = _timestamp_from_row(row, row_index, "pose")
             if not frame:
-                raise ValueError(f"Pose CSV row {row_index} has no frame/image/filename value")
+                if not allow_timestamp_only or timestamp_s is None:
+                    raise ValueError(f"Pose CSV row {row_index} has no frame/image/filename value")
+                frame = f"pose_row_{row_index}"
             try:
                 x = float(row["x"])
                 y = float(row["y"])
@@ -180,9 +205,80 @@ def load_pose_csv(
                 map_py=height_px - y / scale,
                 source="pose_csv",
                 route=int(route_value) if route_value.lstrip("-").isdigit() else route_value,
+                timestamp_s=timestamp_s,
             )
             output[frame] = pose
             output[Path(frame).stem] = pose
+    return output
+
+
+def load_frame_times_csv(csv_path: str | Path) -> dict[str, float]:
+    """Load unique panorama acquisition times from frame,timestamp_s CSV rows."""
+    output: dict[str, float] = {}
+    with Path(csv_path).open("r", encoding="utf-8-sig", newline="") as handle:
+        for row_index, row in enumerate(csv.DictReader(handle), start=2):
+            frame = (row.get("frame") or row.get("image") or row.get("filename") or "").strip()
+            if not frame:
+                raise ValueError(f"Frame-time CSV row {row_index} has no frame/image/filename value")
+            timestamp_s = _timestamp_from_row(row, row_index, "frame")
+            if timestamp_s is None:
+                raise ValueError(f"Frame-time CSV row {row_index} has no timestamp_s/timestamp/time_s/time value")
+            if frame in output or Path(frame).stem in output:
+                raise ValueError(f"Duplicate frame time: {frame}")
+            output[frame] = timestamp_s
+            output[Path(frame).stem] = timestamp_s
+    return output
+
+
+def match_poses_by_timestamp(
+    image_paths: list[Path],
+    pose_lookup: dict[str, Pose],
+    frame_times: dict[str, float],
+    tolerance_s: float,
+) -> dict[str, Pose]:
+    """Match each panorama to one unique nearest pose timestamp within tolerance."""
+    if not math.isfinite(tolerance_s) or tolerance_s <= 0:
+        raise ValueError("Pose timestamp tolerance must be finite and positive")
+    source_poses = list({id(pose): pose for pose in pose_lookup.values()}.values())
+    if not source_poses or any(pose.timestamp_s is None for pose in source_poses):
+        raise ValueError("Timestamp matching requires timestamp_s/timestamp/time_s/time on every pose CSV row")
+    output: dict[str, Pose] = {}
+    used_source_rows: set[int] = set()
+    for image_path in image_paths:
+        frame_time = frame_times.get(image_path.name)
+        if frame_time is None:
+            frame_time = frame_times.get(image_path.stem)
+        if frame_time is None:
+            raise KeyError(f"No frame timestamp for panorama: {image_path.name}")
+        ranked = sorted(source_poses, key=lambda pose: abs(float(pose.timestamp_s) - frame_time))
+        candidate = ranked[0]
+        delta_s = abs(float(candidate.timestamp_s) - frame_time)
+        second_delta_s = abs(float(ranked[1].timestamp_s) - frame_time) if len(ranked) > 1 else None
+        if second_delta_s is not None and math.isclose(second_delta_s, delta_s, abs_tol=1e-9):
+            raise ValueError(f"Ambiguous nearest pose timestamp for panorama: {image_path.name}")
+        if delta_s > tolerance_s:
+            raise ValueError(
+                f"Nearest pose timestamp for {image_path.name} differs by {delta_s:.6f} s, exceeding {tolerance_s:.6f} s"
+            )
+        if id(candidate) in used_source_rows:
+            raise ValueError(f"One pose timestamp would be reused for multiple panoramas: {image_path.name}")
+        used_source_rows.add(id(candidate))
+        matched = Pose(
+            frame=image_path.name,
+            x=candidate.x,
+            y=candidate.y,
+            z=candidate.z,
+            yaw=candidate.yaw,
+            map_px=candidate.map_px,
+            map_py=candidate.map_py,
+            source="pose_csv",
+            route=candidate.route,
+            timestamp_s=candidate.timestamp_s,
+            frame_timestamp_s=frame_time,
+            match_delta_s=delta_s,
+        )
+        output[image_path.name] = matched
+        output[image_path.stem] = matched
     return output
 
 

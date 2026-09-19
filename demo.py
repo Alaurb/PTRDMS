@@ -17,7 +17,13 @@ from PIL import Image
 from ripeness_demo.detectors import annotate, build_detector
 from ripeness_demo.evidence import RangeEvidence, foreground_range, associate
 from ripeness_demo.artifacts import build_evidence_manifest, write_evidence_manifest
-from ripeness_demo.mapping import generate_demo_poses, load_pose_csv, project_detection
+from ripeness_demo.mapping import (
+    generate_demo_poses,
+    load_frame_times_csv,
+    load_pose_csv,
+    match_poses_by_timestamp,
+    project_detection,
+)
 from ripeness_demo.panorama import extract_side_views, extract_all_faces, list_images
 from ripeness_demo.report import draw_map_overlay, write_csv_files, write_html_report, write_summary
 
@@ -27,7 +33,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", required=True, help="Directory containing panorama images")
     parser.add_argument("--map", required=True, dest="map_path", help="2D occupancy or farm map image")
     parser.add_argument("--output", default="demo_output", help="Output directory")
-    parser.add_argument("--pose-csv", help="Measured poses in frame,x,y,z,yaw[,route] CSV format")
+    parser.add_argument("--pose-csv", help="Measured poses in frame,x,y,z,yaw[,route,timestamp_s] CSV format")
+    parser.add_argument("--pose-match-mode", choices=["filename", "timestamp"], default="filename",
+                        help="Bind panoramas to poses by filename (default) or timestamp nearest-neighbour")
+    parser.add_argument("--frame-times-csv", help="Panorama acquisition times in frame,timestamp_s CSV format; required for timestamp pose matching")
+    parser.add_argument("--pose-timestamp-tolerance-s", type=float, default=.05,
+                        help="Maximum panorama-to-pose timestamp difference for timestamp matching")
     parser.add_argument("--weights", help="Optional four-class YOLO weights")
     parser.add_argument("--detector-weights", help="Optional tomato detector weights")
     parser.add_argument("--classifier-weights", help="Optional ripeness classifier weights")
@@ -71,6 +82,13 @@ def run(args: argparse.Namespace) -> Path:
         raise ValueError("Camera yaw offset must be finite")
     if args.range_manifest and not args.pose_csv:
         raise ValueError("Measured range requires matched camera poses via --pose-csv")
+    if args.pose_match_mode == "timestamp":
+        if not args.pose_csv or not args.frame_times_csv:
+            raise ValueError("Timestamp pose matching requires both --pose-csv and --frame-times-csv")
+        if not math.isfinite(args.pose_timestamp_tolerance_s) or args.pose_timestamp_tolerance_s <= 0:
+            raise ValueError("Pose timestamp tolerance must be finite and positive")
+    elif args.frame_times_csv:
+        raise ValueError("--frame-times-csv is valid only with --pose-match-mode timestamp")
     range_evidence = RangeEvidence(args.range_manifest, args.sync_tolerance_s) if args.range_manifest else None
     input_dir = Path(args.input).expanduser().resolve()
     map_path = Path(args.map_path).expanduser().resolve()
@@ -101,7 +119,19 @@ def run(args: argparse.Namespace) -> Path:
         classifier_imgsz=args.classifier_imgsz,
     )
     if args.pose_csv:
-        pose_lookup = load_pose_csv(args.pose_csv, map_image, args.map_width_m)
+        pose_lookup = load_pose_csv(
+            args.pose_csv,
+            map_image,
+            args.map_width_m,
+            allow_timestamp_only=args.pose_match_mode == "timestamp",
+        )
+        if args.pose_match_mode == "timestamp":
+            pose_lookup = match_poses_by_timestamp(
+                selected,
+                pose_lookup,
+                load_frame_times_csv(args.frame_times_csv),
+                args.pose_timestamp_tolerance_s,
+            )
     else:
         pose_lookup = generate_demo_poses(all_images, map_image, args.map_width_m)
 
@@ -215,6 +245,9 @@ def run(args: argparse.Namespace) -> Path:
         "input": str(input_dir),
         "map": str(map_path),
         "pose_csv": str(Path(args.pose_csv).resolve()) if args.pose_csv else None,
+        "pose_match_mode": args.pose_match_mode,
+        "frame_times_csv": str(Path(args.frame_times_csv).resolve()) if args.frame_times_csv else None,
+        "pose_timestamp_tolerance_s": args.pose_timestamp_tolerance_s,
         "weights": str(Path(args.weights).resolve()) if args.weights else None,
         "detector_weights": str(Path(args.detector_weights).resolve()) if args.detector_weights else None,
         "classifier_weights": str(Path(args.classifier_weights).resolve()) if args.classifier_weights else None,
