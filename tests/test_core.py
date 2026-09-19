@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ripeness_demo.detectors import ColorShapeDetector, Detection, _merge_box_candidates, class_order_for
 from ripeness_demo.mapping import Pose, SpatialDetection, generate_demo_poses, project_detection
 from ripeness_demo.panorama import extract_cube_face, extract_side_views
-from ripeness_demo.report import HTML_TEMPLATE, _plant_columns
+from ripeness_demo.report import HTML_TEMPLATE, OBSERVATION_MAP_TEMPLATE, _plant_columns
 
 
 class CoreTests(unittest.TestCase):
@@ -97,6 +97,8 @@ class CoreTests(unittest.TestCase):
         self.assertIn("let coordinateMode=summary.range_source==='registered_measured_range'", HTML_TEMPLATE)
         self.assertIn("Estimated coordinates", HTML_TEMPLATE)
         self.assertIn("not reconstructed stems", HTML_TEMPLATE)
+        self.assertNotIn("Select a fruit or vine to review", HTML_TEMPLATE)
+        self.assertNotIn("Select a fruit circle or green anchor", OBSERVATION_MAP_TEMPLATE)
         self.assertIsNone(re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]", HTML_TEMPLATE))
 
 
