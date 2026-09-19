@@ -1,33 +1,41 @@
 # PTRDMS: Panoramic Tomato Ripeness Detection and Mapping System
 
-This repository supports the manuscript *Ripeness Monitoring System for Open Facility Environments Based on a Quadruped Robot and Panoramic Vision*. It provides an **offline** workflow that reprojects equirectangular panoramas into perspective views, detects tomatoes on the left and right crop-row views, assigns a four-stage visual ripeness class, and writes annotated observations and a local result viewer.
+PTRDMS is an offline software workflow for tomato-ripeness monitoring from
+equirectangular panoramic images. It reprojects a panorama into perspective
+views, detects tomatoes from robot-relative crop-row views, assigns one of four
+visual ripeness stages, and exports image-linked mapping results for review.
 
-The repository contains the perception and observation-mapping components only. It **consumes** image-matched localization records from an upstream navigation/localization system to bind panoramas to poses and create a spatial observation map; it does not plan routes, send motion commands, perform SLAM, control gait, or avoid collisions.
+The repository focuses on panoramic perception and observation mapping. It
+accepts image-matched localization records produced by an upstream platform
+when location-aware mapping is required.
 
 ## Processing workflow
 
 ```text
-Equirectangular panorama
-        |
-        v
-Six perspective cube faces
-        |
-        +--> left and right faces --> one-class tomato detector --> four-stage classifier
-                                                               |
-                                                               v
-Camera pose + optional registered range ----------> observation-level outputs
-                                                               |
-                                                               v
-Annotated views + CSV/JSON + local result page
+Panoramic image → geometric perspective reprojection → tomato detection
+                → four-stage ripeness classification → mapped observations
+                → annotated images, tables, and local visual report
 ```
 
-The panorama is geometrically reprojected into six faces; only the left and right views are selected for tomato inference. The software does not crop a panorama into six arbitrary image tiles.
+Each panorama is geometrically reprojected into six perspective faces. The
+standard inference workflow uses the robot-relative left and right crop-row
+views; all six faces may also be exported for inspection.
 
 ## Maturity classes and model
 
-The supplied two-stage model uses a one-class YOLO tomato detector followed by a YOLOv8n classification model. The classifier has exactly four output labels: `immature-period`, `green-maturity-period`, `discoloration-period`, and `maturity-period`. Their correspondence to the manuscript terminology is documented in [the class mapping](docs/four_stage_class_mapping.md).
+PTRDMS uses a two-stage model: a one-class YOLO tomato detector followed by a
+YOLOv8n classifier with four classes:
 
-The shipped classifier is trained from all 815 manually reviewed tomato crops after model selection. Its SHA-256 is `934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`. The reviewed crop images, annotations, fixed splits, and exclusion list are published separately as the [Four-Stage Tomato Ripeness Crop Dataset for PTRDMS](https://doi.org/10.5281/zenodo.22822983). Model-selection results, split safeguards, and limitations are reported in [the four-stage evaluation](docs/four_stage_maturity_evaluation.md).
+- `immature-period`
+- `green-maturity-period`
+- `discoloration-period`
+- `maturity-period`
+
+Class terminology is documented in [docs/four_stage_class_mapping.md](docs/four_stage_class_mapping.md).
+The reviewed crop dataset, annotations, reproducible splits, and exclusion list
+are available at [Zenodo: 10.5281/zenodo.22822983](https://doi.org/10.5281/zenodo.22822983).
+The supplied classifier SHA-256 is
+`934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`.
 
 ## Run the workflow
 
@@ -55,9 +63,12 @@ python demo.py `
   --max-frames 0
 ```
 
-The user supplies the panorama folder and map image. A run produces `index.html`, projected views, annotated left/right views, `detections.csv`, `trajectory.csv`, `plants.csv`, `tracks.json`, `association_links.json`, `rejected_observations.json`, `summary.json`, `run_config.json`, and `evidence.json`.
+The run creates a local visual report (`index.html`), perspective views,
+annotated detections, `detections.csv`, `trajectory.csv`, spatial-map images,
+and JSON records for downstream analysis.
 
-For localization-backed mapping, also provide a one-to-one image/pose table and, when available, a registered radial-range manifest:
+For location-aware mapping, provide an image/pose table from the upstream
+localization workflow:
 
 ```powershell
 python demo.py `
@@ -68,26 +79,26 @@ python demo.py `
   --output outputs/mapping
 ```
 
-The default `--pose-match-mode filename` binds each panorama filename (with a filename-stem fallback) to its upstream camera pose. To use explicit timestamp alignment, supply `--pose-match-mode timestamp --frame-times-csv <frame_times.csv>`; pose and panorama rows must carry timestamps, each panorama is matched to one nearest pose within `--pose-timestamp-tolerance-s` (default 0.05 s), and missing, ambiguous, reused, or out-of-tolerance matches fail the run. Timestamp-mode `trajectory.csv` preserves the source-pose time, panorama time, and absolute match delta for later audit. `--range-manifest` is required for the depth-backed nearest-row gate and candidate cross-frame fruit association; the two inputs are validated together before mapping proceeds.
+The pose interface supports filename-based matching and explicit timestamp
+matching. Use `--pose-match-mode timestamp --frame-times-csv <frame_times.csv>`
+when the acquisition pipeline provides image and pose timestamps. A registered
+radial-range manifest can additionally be supplied through `--range-manifest`
+for range-aware row filtering and within-pass observation association.
 
-`evidence/test_bag_path_only/` is a public, image-free timing/path fixture exported from the authorized `test.bag`: it contains 1,121 camera-trigger/RTK matches and opaque `shot_NNNN.jpg` identifiers, but no panorama bytes or image-topic data. The reusable exporter is `scripts/export_rosbag_pose_evidence.py`; it uses ROS bag record time as the common clock because this bag's RTK message-header clock is distinct.
+`tracks.json`, `association_links.json`, and `rejected_observations.json`
+provide traceable records for these mapping operations. If a pose table is not
+provided, the viewer renders an ordered demonstration trajectory so that image
+observations can still be inspected.
 
-The physical meanings of `left` and `right` depend on the equirectangular camera's yaw extrinsic. Supply its calibrated native-forward offset with `--camera-yaw-offset-deg`; for example, a `-90` degree offset makes a native `front/back` pair the logical robot-relative `left/right` pair. This value is written to `run_config.json` and must also be used when producing any registered range maps.
+See [docs/interfaces.md](docs/interfaces.md) for CSV and range-manifest
+schemas, coordinate conventions, and integration notes.
 
-## Data and evidence boundaries
+## Data availability
 
-Raw panoramas, derived archived outputs, and site maps are not redistributed in this public package. They remain under the data owner's control and may be requested from the authors subject to authorization. They are not ground truth and must not be used to calculate detection accuracy, unique-fruit counting accuracy, spatial accuracy, or coverage.
-
-The default example uses a synthetic path generated from frame order and an assumed row plane when measured pose/range inputs are absent. Consequently:
-
-- an image observation is not automatically a unique tomato;
-- left/right view selection alone does not prove exclusion of background-row fruit;
-- pixel vertical position is retained, but metric fruit height requires calibrated geometry, measured pose, and registered range;
-- nearest-row gating is enabled only when `--range-manifest` supplies calibrated, registered radial ranges alongside `--pose-csv`; without range input it is disabled and `summary.json` records `nearest_row_filter="not_verified_no_depth"` and `association_status="disabled_no_measured_geometry"`;
-- cross-frame association additionally requires every processed pose to come from `pose_csv` and every associated detection to have `position_source="measured_radial_range"`; its outputs remain candidates requiring independent validation;
-- the workflow is offline batch processing, not a real-time end-to-end deployment claim.
-
-External pose and range interfaces are described in [docs/interfaces.md](docs/interfaces.md). The one-class detector evaluation is in [docs/detector_evaluation.md](docs/detector_evaluation.md), and source/data provenance is in [docs/provenance.md](docs/provenance.md).
+The public repository contains code, model artifacts, interfaces, tests, and
+the released crop dataset reference. Field panoramas and site maps are managed
+separately by their data owner and are available from the authors subject to
+authorization.
 
 ## Verification
 
