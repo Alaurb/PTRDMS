@@ -13,6 +13,10 @@ interface testing. `rejected_triggers.csv` is intentionally header-only: all
 1,121 triggers matched within the recorded 60 ms upper bound (observed maximum
 56.991 ms; see `metadata.json`).
 
+`path_preview.png` visualizes the exported trigger/RTK route. Its line colour
+progresses from early to late acquisition, and hollow markers occur every 50th
+trigger. It is generated without image data by `scripts/render_path_evidence.py`.
+
 The common clock is **ROS bag record time**, not the RTK message-header time;
 the latter uses a distinct device clock in this acquisition. The coordinates
 are an RTK-derived local ENU approximation and yaw is inferred from horizontal
