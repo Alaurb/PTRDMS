@@ -70,6 +70,8 @@ python demo.py `
 
 The default `--pose-match-mode filename` binds each panorama filename (with a filename-stem fallback) to its upstream camera pose. To use explicit timestamp alignment, supply `--pose-match-mode timestamp --frame-times-csv <frame_times.csv>`; pose and panorama rows must carry timestamps, each panorama is matched to one nearest pose within `--pose-timestamp-tolerance-s` (default 0.05 s), and missing, ambiguous, reused, or out-of-tolerance matches fail the run. Timestamp-mode `trajectory.csv` preserves the source-pose time, panorama time, and absolute match delta for later audit. `--range-manifest` is required for the depth-backed nearest-row gate and candidate cross-frame fruit association; the two inputs are validated together before mapping proceeds.
 
+`evidence/test_bag_path_only/` is a public, image-free timing/path fixture exported from the authorized `test.bag`: it contains 1,121 camera-trigger/RTK matches and opaque `shot_NNNN.jpg` identifiers, but no panorama bytes or image-topic data. The reusable exporter is `scripts/export_rosbag_pose_evidence.py`; it uses ROS bag record time as the common clock because this bag's RTK message-header clock is distinct.
+
 The physical meanings of `left` and `right` depend on the equirectangular camera's yaw extrinsic. Supply its calibrated native-forward offset with `--camera-yaw-offset-deg`; for example, a `-90` degree offset makes a native `front/back` pair the logical robot-relative `left/right` pair. This value is written to `run_config.json` and must also be used when producing any registered range maps.
 
 ## Data and evidence boundaries

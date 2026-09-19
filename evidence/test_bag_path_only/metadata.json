@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "source_bag_filename": "test.bag",
+  "trigger_topic": "/camera_agent/shot_trigger",
+  "rtk_topic": "/rtk_agent/pvtsln_sync",
+  "time_basis": "rosbag_record_time_s",
+  "matching": "unique nearest recorded RTK sample for each camera trigger",
+  "maximum_allowed_delta_s": 0.06,
+  "trigger_messages": 1121,
+  "valid_rtk_messages": 22485,
+  "matched_triggers": 1121,
+  "rejected_triggers": 0,
+  "match_delta_statistics_s": {
+    "minimum": 7.867813110351562e-06,
+    "median": 0.027619361877441406,
+    "p95": 0.0501711368560791,
+    "maximum": 0.0569911003112793
+  },
+  "image_topics_read": false,
+  "image_data_exported": false,
+  "ptrdms_fixture": "ptrdms_frame_times.csv and ptrdms_pose_samples.csv use opaque shot_NNNN.jpg identifiers only",
+  "coordinate_frame": "local ENU approximation, origin at first valid RTK sample",
+  "yaw_note": "yaw_rad_from_velocity is derived from horizontal RTK velocity and is held at the last valid value below 0.02 m/s"
+}
