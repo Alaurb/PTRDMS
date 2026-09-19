@@ -360,7 +360,10 @@ HTML_TEMPLATE = r'''<!doctype html>
 <script>
 const DATA=__DATA__, colors=DATA.colors, plants=DATA.plants, summary=DATA.summary, evidence=DATA.evidence||{};
 document.querySelector('h1').textContent=summary.taxonomy==='green_gem'?'PTRDMS | Green Gem observations':'PTRDMS | Four-stage observations';
-let coordinateMode=true;
+// Show individual estimated coordinates by default only when a registered
+// measured range is available.  Otherwise, a relative observation layout is
+// clearer and does not visually overstate assumed-row-plane positions.
+let coordinateMode=summary.range_source==='registered_measured_range';
 const modeButton=document.createElement('button');const updateModeButton=()=>{modeButton.textContent=coordinateMode?'Mode: estimated coordinates':'Mode: relative observation layout'};modeButton.onclick=()=>{coordinateMode=!coordinateMode;updateModeButton();draw()};updateModeButton();document.querySelector('.main-panel h2').after(modeButton);
 document.querySelector('#evidence-banner').textContent=(evidence.headline||'Observation display')+' Drag to rotate | scroll to zoom.';
 const labels={processed_frames:'Processed frames',plant_columns:'Observation positions',detections:'Detected fruit',immature:'Immature',mature_green:'Mature green',harvest_ready:'Harvest ready',overripe_or_defective:'Overripe / defective',green_mature:'Green maturity',discoloration:'Discoloration',mature:'Maturity'};
