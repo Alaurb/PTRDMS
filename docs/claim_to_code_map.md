@@ -20,4 +20,4 @@ outputs remain observations or candidates rather than validated field quantities
 
 The runnable workflow and its input/output contract are documented in `README.md` and
 `docs/interfaces.md`. The four-stage crop corpus, annotations, five fixed splits, and
-exclusion list are available separately at [Zenodo concept DOI 10.5281/zenodo.22822983](https://doi.org/10.5281/zenodo.22822983).
+exclusion list are available separately as [Zenodo Version v2: 10.5281/zenodo.22827683](https://doi.org/10.5281/zenodo.22827683).

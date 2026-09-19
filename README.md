@@ -34,9 +34,12 @@ YOLOv8n classifier with four classes:
 
 Class terminology is documented in [docs/four_stage_class_mapping.md](docs/four_stage_class_mapping.md).
 The reviewed crop dataset, annotations, reproducible splits, and exclusion list
-are available at [Zenodo: 10.5281/zenodo.22822983](https://doi.org/10.5281/zenodo.22822983).
+are available as [Zenodo Version v2: 10.5281/zenodo.22827683](https://doi.org/10.5281/zenodo.22827683).
 The supplied classifier SHA-256 is
 `934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`.
+Detector and classifier results are evaluated separately; the four-stage
+classification results are crop-level measurements, not end-to-end system
+accuracy for panoramas.
 
 ## Offline batch workflow
 
@@ -93,6 +96,28 @@ python live_ros.py \
 Use `--pose-tolerance-s` to configure the accepted image-to-pose timestamp
 window and `--report-every` to set the report-refresh interval. Each accepted
 frame is also published as a JSON `std_msgs/String` message on `--result-topic`.
+
+### Public online-processing showcase
+
+The repository includes an image-free timing and path fixture exported from a
+ROS bag. It demonstrates the upstream trigger/pose inputs that PTRDMS accepts
+for timestamped observation binding; no panorama bytes, tomato detections, or
+site map are included in this public artifact.
+
+![Image-free trigger and RTK path preview](evidence/test_bag_path_only/path_preview.png)
+
+Run the renderer again with:
+
+```bash
+python scripts/render_path_evidence.py \
+  --input evidence/test_bag_path_only/trigger_pose_trace.csv \
+  --output evidence/test_bag_path_only/path_preview.png
+```
+
+See [evidence/test_bag_path_only/README.md](evidence/test_bag_path_only/README.md)
+for its inputs and scope. The online node emits a compact JSON observation
+message for each accepted frame; [docs/online_showcase.md](docs/online_showcase.md)
+documents the public-facing flow and message fields without exposing field imagery.
 
 ## Localization-aware mapping
 
