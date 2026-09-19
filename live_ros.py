@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default="outputs/online", help="Online result directory")
     parser.add_argument("--image-topic", default="/camera/image/compressed")
     parser.add_argument("--pose-topic", default="/robot_pose")
+    parser.add_argument("--result-topic", default="/ptrdms/observations", help="JSON observation topic")
     parser.add_argument("--route", default="online", help="Session or row identifier written with poses")
     parser.add_argument("--pose-tolerance-s", type=float, default=0.05)
     parser.add_argument("--max-pose-buffer", type=int, default=2000)
@@ -120,9 +121,10 @@ class OnlineResultStore:
 
 
 class RosOnlineNode:
-    def __init__(self, args: argparse.Namespace, rospy):
+    def __init__(self, args: argparse.Namespace, rospy, result_publisher):
         self.args = args
         self.rospy = rospy
+        self.result_publisher = result_publisher
         self.map_image = Image.open(args.map_path).convert("RGB")
         self.output_dir = Path(args.output).expanduser().resolve()
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -176,6 +178,14 @@ class RosOnlineNode:
                 ]
                 side_results.append((side, view, raw, spatial))
             self.results.record(pose, side_results)
+            self.result_publisher.publish(json.dumps({
+                "frame": frame_name,
+                "frame_timestamp_s": pose.frame_timestamp_s,
+                "pose_timestamp_s": pose.timestamp_s,
+                "match_delta_s": pose.match_delta_s,
+                "pose": {"x": pose.x, "y": pose.y, "z": pose.z, "yaw": pose.yaw, "route": pose.route},
+                "observations": [item.to_dict() for _, _, _, spatial in side_results for item in spatial],
+            }, ensure_ascii=False))
             self.rospy.loginfo(f"PTRDMS processed {frame_name}: {sum(len(item[3]) for item in side_results)} observations")
         except Exception as exc:  # pragma: no cover - ROS callback safety
             self.results.reject_frame(frame_name, seconds + nanoseconds / 1_000_000_000, f"processing_error: {exc}")
@@ -190,13 +200,15 @@ def main() -> None:
         import rospy
         from geometry_msgs.msg import PoseStamped
         from sensor_msgs.msg import CompressedImage
+        from std_msgs.msg import String
     except ImportError as exc:
         raise RuntimeError("Online mode requires a ROS1 environment with rospy, geometry_msgs, and sensor_msgs") from exc
     rospy.init_node("ptrdms_online", anonymous=True)
-    node = RosOnlineNode(args, rospy)
+    result_publisher = rospy.Publisher(args.result_topic, String, queue_size=10)
+    node = RosOnlineNode(args, rospy, result_publisher)
     rospy.Subscriber(args.pose_topic, PoseStamped, node.on_pose, queue_size=200)
     rospy.Subscriber(args.image_topic, CompressedImage, node.on_image, queue_size=2)
-    rospy.loginfo(f"PTRDMS online mode listening on image={args.image_topic}, pose={args.pose_topic}")
+    rospy.loginfo(f"PTRDMS online mode listening on image={args.image_topic}, pose={args.pose_topic}, result={args.result_topic}")
     rospy.spin()
 
 

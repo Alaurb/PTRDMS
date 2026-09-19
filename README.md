@@ -83,6 +83,7 @@ python live_ros.py \
   --map <map-image> \
   --image-topic /camera/image/compressed \
   --pose-topic /robot_pose \
+  --result-topic /ptrdms/observations \
   --output outputs/online \
   --detector two-stage \
   --detector-weights models/tomato_detector.pt \
@@ -90,7 +91,8 @@ python live_ros.py \
 ```
 
 Use `--pose-tolerance-s` to configure the accepted image-to-pose timestamp
-window and `--report-every` to set the report-refresh interval.
+window and `--report-every` to set the report-refresh interval. Each accepted
+frame is also published as a JSON `std_msgs/String` message on `--result-topic`.
 
 ## Localization-aware mapping
 

@@ -33,6 +33,9 @@ The central bounding-box region supplies a range statistic. Leaf occlusion can s
 stores poses by exact `header.stamp`, and accepts one unique nearest pose within
 the configured tolerance for each incoming panorama. The rolling result folder
 uses the same annotated-image, CSV, JSON, and map-report formats as batch mode.
+Each accepted frame is additionally published as a JSON `std_msgs/String`
+message on `/ptrdms/observations` by default; the topic is configurable with
+`--result-topic`.
 
 The MaturityDetection and MaturityObservationArray schemas in
 `interfaces/ros_msgs/` remain available as adapter references. An integration
