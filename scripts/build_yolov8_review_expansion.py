@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Build a reproducible YOLOv8 dataset with a fixed validation split.
+"""Build a reproducible YOLOv8 dataset with fixed validation and test splits.
 
 The original detector split remains untouched.  Approved reviewed images are
 added only to the training side, unless their panorama capture group belongs
 to the frozen validation split, in which case they are explicitly excluded to
-prevent leakage.  Images are linked; labels are copied and normalized to the
-five-column YOLO detection format to make this dataset a data freeze.
+prevent leakage.  An optional independently reviewed holdout can be added as
+the test split, but it must not share a capture group with any base or
+training-review image. Images are linked; labels are copied and normalized to
+the five-column YOLO detection format to make this dataset a data freeze.
 """
 
 import argparse
@@ -67,33 +69,49 @@ def write_label(source, destination):
     destination.write_text(normalized_label(source), encoding="utf-8")
 
 
+def load_frozen_review(root, role):
+    """Return a frozen, operator-approved review package and its rows."""
+    root = root.resolve()
+    manifest = root / "review_freeze_manifest.csv"
+    if not manifest.is_file():
+        raise ValueError("{} review freeze manifest is missing: {}".format(role, manifest))
+    with manifest.open(newline="", encoding="utf-8-sig") as handle:
+        rows = list(csv.DictReader(handle))
+    if not rows:
+        raise ValueError("{} review manifest is empty".format(role))
+    if any(row.get("audit_status") != "approved" for row in rows):
+        raise ValueError("every {} review row must be approved".format(role))
+    return root, rows
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base-dataset", type=Path, required=True, help="frozen tomato_detector_v1 directory")
     parser.add_argument("--review-root", type=Path, required=True, help="review queue containing an approved freeze")
+    parser.add_argument("--test-review-root", type=Path, help="independent approved review queue for the held-out test split")
     parser.add_argument("--output", type=Path, required=True, help="new output directory; must not already exist")
     args = parser.parse_args()
 
     base = args.base_dataset.resolve()
-    review = args.review_root.resolve()
+    review, review_rows = load_frozen_review(args.review_root, "training")
+    test_review = test_rows = None
+    if args.test_review_root:
+        test_review, test_rows = load_frozen_review(args.test_review_root, "test")
     output = args.output.resolve()
     if output.exists():
         parser.error("refusing to overwrite {}".format(output))
     base_manifest = base / "manifest.csv"
     review_manifest = review / "review_freeze_manifest.csv"
-    if not base_manifest.is_file() or not review_manifest.is_file():
-        parser.error("base manifest or frozen review manifest is missing")
+    if not base_manifest.is_file():
+        parser.error("base manifest is missing")
 
     with base_manifest.open(newline="", encoding="utf-8-sig") as handle:
         base_rows = list(csv.DictReader(handle))
-    with review_manifest.open(newline="", encoding="utf-8-sig") as handle:
-        review_rows = list(csv.DictReader(handle))
-    if not base_rows or not review_rows:
-        parser.error("input manifest is empty")
-    if any(row.get("audit_status") != "approved" for row in review_rows):
-        parser.error("every frozen review row must be approved")
+    if not base_rows:
+        parser.error("base manifest is empty")
 
     base_val_groups = {row["capture_group"] for row in base_rows if row["split"] == "val"}
+    base_groups = {row["capture_group"] for row in base_rows}
     base_names = {Path(row["image"]).name for row in base_rows}
     review_images = review / "images"
     review_labels = review / "labels_to_review"
@@ -112,8 +130,27 @@ def main():
         else:
             included.append(item)
 
+    heldout = []
+    if test_review:
+        test_images = test_review / "images"
+        test_labels = test_review / "labels_to_review"
+        included_groups = {item["capture_group"] for item in included}
+        seen_names = set(base_names) | {item["image"].name for item in included}
+        for row in test_rows:
+            image = test_images / row["image"]
+            label = test_labels / (Path(row["image"]).stem + ".txt")
+            group = capture_group(image.stem)
+            if not image.is_file() or not label.is_file():
+                parser.error("missing held-out image or label for {}".format(row["image"]))
+            if group in base_groups or group in included_groups:
+                parser.error("held-out capture group overlaps training or validation: {}".format(group))
+            if image.name in seen_names:
+                parser.error("held-out image duplicates another split: {}".format(image.name))
+            seen_names.add(image.name)
+            heldout.append({"image": image, "label": label, "capture_group": group, "row": row})
+
     output.mkdir(parents=True)
-    for split in ("train", "val"):
+    for split in ("train", "val", "test"):
         (output / "images" / split).mkdir(parents=True)
         (output / "labels" / split).mkdir(parents=True)
     manifest_rows = []
@@ -136,9 +173,18 @@ def main():
             "image": str(image.resolve()), "label": str(label.resolve()),
             "image_sha256": sha256_file(image), "label_sha256": sha256_file(output / "labels" / "train" / (image.stem + ".txt")),
         })
+    for item in heldout:
+        image, label = item["image"], item["label"]
+        link(image, output / "images" / "test" / image.name)
+        write_label(label, output / "labels" / "test" / (image.stem + ".txt"))
+        manifest_rows.append({
+            "split": "test", "source_kind": "review_holdout_test", "capture_group": item["capture_group"],
+            "image": str(image.resolve()), "label": str(label.resolve()),
+            "image_sha256": sha256_file(image), "label_sha256": sha256_file(output / "labels" / "test" / (image.stem + ".txt")),
+        })
 
     (output / "data.yaml").write_text(
-        "path: {}\ntrain: images/train\nval: images/val\nnames:\n  0: tomato\n".format(output), encoding="utf-8"
+        "path: {}\ntrain: images/train\nval: images/val\ntest: images/test\nnames:\n  0: tomato\n".format(output), encoding="utf-8"
     )
     fields = ["split", "source_kind", "capture_group", "image", "label", "image_sha256", "label_sha256"]
     with (output / "manifest.csv").open("w", newline="", encoding="utf-8") as handle:
@@ -154,18 +200,22 @@ def main():
     (output / "DATA_FREEZE.md").write_text(
         "# YOLOv8 tomato detector expansion v1\n\n"
         "- Frozen validation images: {} (identical to `tomato_detector_v1`)\n"
+        "- Independent held-out test images: {}\n"
         "- Base training images: {}\n- Included reviewed training images: {}\n"
         "- Training images after expansion: {}\n- Reviewed images excluded to protect validation groups: {}\n"
-        "- Base manifest SHA256: `{}`\n- Review freeze SHA256: `{}`\n- Output manifest SHA256: `{}`\n"
+        "- Base manifest SHA256: `{}`\n- Training-review freeze SHA256: `{}`\n"
+        "- Test-review freeze SHA256: `{}`\n- Output manifest SHA256: `{}`\n"
         "- Images are symbolic links to source files; labels are copied, normalized five-column YOLO files.\n".format(
-            counts["val"], sum(row["split"] == "train" and row["source_kind"] == "base_v1" for row in manifest_rows),
+            counts["val"], counts["test"], sum(row["split"] == "train" and row["source_kind"] == "base_v1" for row in manifest_rows),
             len(included), counts["train"], len(excluded), sha256_file(base_manifest),
-            sha256_file(review_manifest), sha256_file(output / "manifest.csv")
+            sha256_file(review_manifest),
+            sha256_file(test_review / "review_freeze_manifest.csv") if test_review else "not_provided",
+            sha256_file(output / "manifest.csv")
         ), encoding="utf-8"
     )
     print("Built {}".format(output))
-    print("train={} (base={}, reviewed={}); val={} fixed; excluded_review={}".format(
-        counts["train"], counts["train"] - len(included), len(included), counts["val"], len(excluded)
+    print("train={} (base={}, reviewed={}); val={} fixed; test={} held-out; excluded_review={}".format(
+        counts["train"], counts["train"] - len(included), len(included), counts["val"], counts["test"], len(excluded)
     ))
 
 
