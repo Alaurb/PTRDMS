@@ -41,6 +41,52 @@ Detector and classifier results are evaluated separately; the four-stage
 classification results are crop-level measurements, not end-to-end system
 accuracy for panoramas.
 
+## Scope and claim boundaries
+
+The repository implements and documents a processing pipeline. It does not
+establish end-to-end system accuracy, and the boundaries below apply to every
+output it produces.
+
+- **The repository does not navigate the robot.** It consumes image-matched
+  localization records produced upstream. Navigation, gait control, and
+  localization are external to this package.
+- **Reported recognition scores are crop-level, not panorama-system scores.** The
+  four-stage classifier is evaluated on reviewed tomato crops. Those numbers are
+  not end-to-end accuracy for the full panorama pipeline.
+- **The detector and the maturity classifier are evaluated separately.** Neither
+  evaluation measures whole-system accuracy.
+- **The deployed weights are full-corpus fits and have no held-out evaluation
+  split.** After model selection, the released classifier was trained on all 815
+  reviewed crops for 11 fixed epochs. Its training-fit metrics are not reported as
+  performance.
+- **Fruit positions are observations, not validated ground truth.** Coordinates
+  come from a camera pose combined with a projected fruit position. Where
+  registered radial ranges are unavailable, the assumed-row-plane output is
+  illustrative only. No output establishes unique-fruit counts, physical fruit
+  height, or spatial accuracy.
+- **The manuscript reports offline batch results.** An online ROS1 entry point is
+  provided for completeness, but the reported figures come from the offline batch
+  workflow.
+
+A per-capability view of what is implemented, under what condition, and with what
+validation status is maintained in [docs/claim_to_code_map.md](docs/claim_to_code_map.md).
+
+## Citation
+
+If you use this code or the released model weights, please cite the manuscript.
+If you use the reviewed crop dataset, please cite the dataset record as well.
+
+```bibtex
+@misc{lyu2026dataset,
+  author    = {Lyu, Jinru},
+  title     = {Four-Stage Tomato Ripeness Crop Dataset for PTRDMS},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.22827683},
+  note      = {Version v2}
+}
+```
+
 ## Offline batch workflow
 
 Create the tested environment:
@@ -155,10 +201,22 @@ schemas, coordinate conventions, and integration notes.
 
 ## Data availability
 
-The public repository contains code, model artifacts, interfaces, tests, and
-the released crop dataset reference. Field panoramas and site maps are managed
-separately by their data owner and are available from the authors subject to
-authorization.
+**Released with this repository.** Source code, the two deployed model weights,
+interface schemas, provenance records, and the evaluation records under `docs/`.
+
+**Published separately.** The human-reviewed four-stage tomato crop images, their
+annotations, the five fixed source-group-disjoint splits, and the exclusion list
+for unclassifiable records are published as the *Four-Stage Tomato Ripeness Crop
+Dataset for PTRDMS*: [Zenodo, version DOI 10.5281/zenodo.22827683](https://doi.org/10.5281/zenodo.22827683)
+(CC BY 4.0). The crop corpus is not redistributed inside this repository.
+
+**Not redistributed.** Raw panoramas, facility maps, and derived archived
+demonstrations originate from the facility operator. They are managed separately
+by their data owner and may be requested from the authors subject to
+authorization, including for peer-review purposes.
+
+Running the released workflow requires a user-supplied panorama directory and
+facility map.
 
 ## Verification
 
@@ -180,6 +238,25 @@ scripts/                   Data preparation, evaluation, and verification helper
 docs/                      Interfaces, provenance, class mapping, and evaluations
 tests/                     Processing and desktop-command tests
 ```
+
+## Reproducibility of the reported results
+
+The classifier figures in the manuscript come from five repeated,
+source-group-disjoint 70/15/15 holdouts generated with seeds 20260915–20260919,
+each containing 572 training, 122 validation, and 121 test crops. The five
+repetitions are not five-fold cross-validation: their test sets may overlap, and
+no single repetition was selected for reporting.
+
+The seeds are date-formatted integers used as framework RNG seeds; they are not
+acquisition dates. The corpus was collected between October and December 2025,
+and the held-out sets are drawn from the reviewed corpus rather than partitioned
+by collection date.
+
+The per-repetition split manifests and test reports are published with the
+dataset and summarized in
+[docs/four_stage_maturity_evaluation.md](docs/four_stage_maturity_evaluation.md),
+which also lists the ResNet-18 baseline and the two predeclared alternatives
+retained as negative results.
 
 ## License
 
