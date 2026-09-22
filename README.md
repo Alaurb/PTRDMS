@@ -1,14 +1,14 @@
 # PTRDMS: Panoramic Tomato Ripeness Detection and Mapping System
 
-PTRDMS supports offline batch and online ROS1 workflows for tomato-ripeness
-monitoring from equirectangular panoramic images. It reprojects a panorama into
-perspective views, detects tomatoes from robot-relative crop-row views, assigns
-one of four visual ripeness stages, and exports image-linked mapping results for
-review.
+PTRDMS is the reproducibility package for the manuscript *Ripeness Monitoring
+System for Open Facility Environments Based on a Quadruped Robot and Panoramic
+Vision*. It implements the panoramic perception and observation-mapping layers
+described there: a panorama is reprojected into perspective views, tomatoes are
+detected in robot-relative crop-row views, one of four visual ripeness stages is
+assigned, and image-linked mapping results are exported for review.
 
-The repository focuses on panoramic perception and observation mapping. It
-accepts image-matched localization records produced by an upstream platform
-when location-aware mapping is required.
+The repository covers perception and observation mapping only. Navigation, SLAM,
+gait control, and real-time robot control are outside its scope.
 
 ## Processing workflow
 
@@ -72,6 +72,12 @@ annotated detections, `detections.csv`, `trajectory.csv`, spatial-map images,
 and JSON records for downstream analysis.
 
 ## Online ROS1 operation
+
+> **Scope note.** The online entry point is provided so the same pipeline can be
+> driven by a live stream. **It has not been validated in the field.** The
+> manuscript's reported results come from the offline batch workflow, and no
+> online latency, throughput, or real-time on-board-inference claim is made here
+> or in the manuscript.
 
 PTRDMS can also process a live ROS1 stream. The online entry point subscribes
 to an equirectangular JPEG topic (`sensor_msgs/CompressedImage`) and a
