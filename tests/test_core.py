@@ -96,7 +96,7 @@ class CoreTests(unittest.TestCase):
         self.assertIn("3D ripeness observation view", HTML_TEMPLATE)
         self.assertIn("let coordinateMode=summary.range_source==='registered_measured_range'", HTML_TEMPLATE)
         self.assertIn("Estimated coordinates", HTML_TEMPLATE)
-        self.assertIn("not reconstructed stems", HTML_TEMPLATE)
+        self.assertIn("dashed guides group detections by inspection position", HTML_TEMPLATE)
         self.assertNotIn("Select a fruit or vine to review", HTML_TEMPLATE)
         self.assertNotIn("Select a fruit circle or green anchor", OBSERVATION_MAP_TEMPLATE)
         self.assertNotIn("Green Gem observations", HTML_TEMPLATE)

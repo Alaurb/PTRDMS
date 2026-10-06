@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+from bisect import bisect_left
+from collections import Counter
 import math
 import re
 from dataclasses import asdict, dataclass
@@ -222,7 +224,7 @@ def load_frame_times_csv(csv_path: str | Path) -> dict[str, float]:
                 raise ValueError(f"Frame-time CSV row {row_index} has no frame/image/filename value")
             timestamp_s = _timestamp_from_row(row, row_index, "frame")
             if timestamp_s is None:
-                raise ValueError(f"Frame-time CSV row {row_index} has no timestamp_s/timestamp/time_s/time value")
+                continue
             if frame in output or Path(frame).stem in output:
                 raise ValueError(f"Duplicate frame time: {frame}")
             output[frame] = timestamp_s
@@ -235,33 +237,56 @@ def match_poses_by_timestamp(
     pose_lookup: dict[str, Pose],
     frame_times: dict[str, float],
     tolerance_s: float,
+    *,
+    rejected: list[dict[str, object]] | None = None,
 ) -> dict[str, Pose]:
-    """Match each panorama to one unique nearest pose timestamp within tolerance."""
+    """Soft-synchronize image/pose streams using unique nearest timestamps.
+
+    Unmatched images are skipped. When images compete for one pose, the image
+    with the smallest residual wins (then earliest image timestamp and name).
+    Input CSV schema errors still raise; per-frame matching decisions are logged.
+    """
     if not math.isfinite(tolerance_s) or tolerance_s <= 0:
         raise ValueError("Pose timestamp tolerance must be finite and positive")
     source_poses = list({id(pose): pose for pose in pose_lookup.values()}.values())
     if not source_poses or any(pose.timestamp_s is None for pose in source_poses):
         raise ValueError("Timestamp matching requires timestamp_s/timestamp/time_s/time on every pose CSV row")
+    if any(not math.isfinite(float(pose.timestamp_s)) for pose in source_poses):
+        raise ValueError("Pose timestamps must be finite")
+    source_poses.sort(key=lambda pose: float(pose.timestamp_s))
+    source_times = [float(pose.timestamp_s) for pose in source_poses]
+    timestamp_counts = Counter(source_times)
     output: dict[str, Pose] = {}
+    rejected = rejected if rejected is not None else []
     used_source_rows: set[int] = set()
+    candidates = []
     for image_path in image_paths:
         frame_time = frame_times.get(image_path.name)
         if frame_time is None:
             frame_time = frame_times.get(image_path.stem)
         if frame_time is None:
-            raise KeyError(f"No frame timestamp for panorama: {image_path.name}")
-        ranked = sorted(source_poses, key=lambda pose: abs(float(pose.timestamp_s) - frame_time))
+            rejected.append(dict(frame=image_path.name, reason="missing_frame_timestamp"))
+            continue
+        if not math.isfinite(frame_time):
+            rejected.append(dict(frame=image_path.name, reason="invalid_frame_timestamp"))
+            continue
+        insertion = bisect_left(source_times, frame_time)
+        neighbours = [source_poses[index] for index in (insertion - 1, insertion) if 0 <= index < len(source_poses)]
+        ranked = sorted(neighbours, key=lambda pose: abs(float(pose.timestamp_s) - frame_time))
         candidate = ranked[0]
         delta_s = abs(float(candidate.timestamp_s) - frame_time)
         second_delta_s = abs(float(ranked[1].timestamp_s) - frame_time) if len(ranked) > 1 else None
-        if second_delta_s is not None and math.isclose(second_delta_s, delta_s, abs_tol=1e-9):
-            raise ValueError(f"Ambiguous nearest pose timestamp for panorama: {image_path.name}")
-        if delta_s > tolerance_s:
-            raise ValueError(
-                f"Nearest pose timestamp for {image_path.name} differs by {delta_s:.6f} s, exceeding {tolerance_s:.6f} s"
-            )
+        if timestamp_counts[float(candidate.timestamp_s)] > 1 or (second_delta_s is not None and math.isclose(second_delta_s, delta_s, abs_tol=1e-9)):
+            rejected.append(dict(frame=image_path.name, reason="ambiguous_nearest_pose", match_delta_s=delta_s))
+            continue
+        if delta_s > tolerance_s and not math.isclose(delta_s, tolerance_s, rel_tol=0, abs_tol=1e-9):
+            rejected.append(dict(frame=image_path.name, reason="outside_timestamp_tolerance", match_delta_s=delta_s))
+            continue
+        candidates.append((delta_s, frame_time, image_path.name, image_path, candidate))
+    for delta_s, frame_time, _, image_path, candidate in sorted(candidates, key=lambda item: item[:3]):
         if id(candidate) in used_source_rows:
-            raise ValueError(f"One pose timestamp would be reused for multiple panoramas: {image_path.name}")
+            rejected.append(dict(frame=image_path.name, reason="pose_already_matched", match_delta_s=delta_s))
+            continue
         used_source_rows.add(id(candidate))
         matched = Pose(
             frame=image_path.name,

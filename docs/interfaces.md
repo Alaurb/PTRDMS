@@ -4,7 +4,7 @@ PTRDMS binds panoramas to map poses using image-matched localization records. Th
 
 ## Camera poses
 
-By default, pass `--pose-csv poses.csv` with `frame,x,y,z,yaw,route`; `frame` is the image filename and the loader binds it by full filename with a filename-stem fallback. For timestamp binding, pass `--pose-match-mode timestamp --pose-csv poses.csv --frame-times-csv frame_times.csv`: pose rows require `x,y,z,yaw,timestamp_s[,route]` (a frame field is optional), frame-time rows require `frame,timestamp_s`, and aliases `timestamp`, `time_s`, and `time` are accepted. Each panorama receives one unique nearest pose within `--pose-timestamp-tolerance-s` (default 0.05 s); missing timestamps, an ambiguous nearest neighbour, an out-of-tolerance nearest pose, or reuse of one pose for two panoramas fails closed. This is nearest-neighbour association, not interpolation. `trajectory.csv` records each timestamp-bound frame's frame time, pose time, and absolute match delta. Coordinates are metres in a shared Cartesian map frame, yaw is radians counterclockwise about +z, +x is camera-forward at zero yaw and +y left. z is the camera optical-centre height, not robot base height. roll and pitch are assumed zero. `route` is an optional session/row identifier. Upstream processing remains responsible for camera extrinsics and a common time base. Map image coordinates use a bottom-left metric origin, with image v pointing downward; supply a compatible map image and `--map-width-m` scale.
+By default, pass `--pose-csv poses.csv` with `frame,x,y,z,yaw,route`; `frame` is the image filename and the loader binds it by full filename with a filename-stem fallback. For timestamp binding, pass `--pose-match-mode timestamp --pose-csv poses.csv --frame-times-csv frame_times.csv`: pose rows require `x,y,z,yaw,timestamp_s[,route]` (a frame field is optional), frame-time rows require `frame,timestamp_s`, and aliases `timestamp`, `time_s`, and `time` are accepted. Each panorama receives one unique nearest pose within `--pose-timestamp-tolerance-s` (default 0.05 s); frames missing a timestamp, with an ambiguous nearest pose or outside the tolerance are skipped. When several images share a nearest pose, the smallest-residual pair is retained (ties use acquisition time and filename). Accepted pairs are processed in acquisition-time order, and `synchronization.json` records all matching decisions. This is nearest-neighbour association, not interpolation. `trajectory.csv` records each timestamp-bound frame's frame time, pose time, and absolute match delta. Coordinates are metres in a shared Cartesian map frame, yaw is radians counterclockwise about +z, +x is camera-forward at zero yaw and +y left. z is the camera optical-centre height, not robot base height. roll and pitch are assumed zero. `route` is an optional session/row identifier. Upstream processing remains responsible for camera extrinsics and a common time base. Map image coordinates use a bottom-left metric origin, with image v pointing downward; supply a compatible map image and `--map-width-m` scale.
 
 ## Panorama yaw extrinsic
 
@@ -24,9 +24,13 @@ NPY paths are relative to the manifest. Each array must match its projected view
 
 The central bounding-box region supplies the foreground range statistic. Row
 filtering applies the configured lateral band when registered ranges and CSV
-poses are supplied. Cross-frame association uses route, side, frame-gap, and 3D
-distance thresholds. Without measured ranges, row filtering and association are
-disabled; their status is recorded in `summary.json`.
+poses are supplied. Cross-frame association uses route, side and frame gap. The default
+`--association-method spatial-cell` groups observations in map-aligned 3D cells
+(default side length 0.12 m, maximum gap three frames), using projected locations
+and supplied CSV poses. Matching is one-to-one per frame.
+`--association-method measured-distance` uses measured radial ranges and a 3D
+distance threshold. Row filtering uses measured ranges; its status and the
+association mode are recorded in `summary.json`.
 
 ## Outputs and ROS compatibility
 

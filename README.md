@@ -113,19 +113,29 @@ localization workflow:
 python demo.py `
   --input <panorama-folder> `
   --map <map-image> `
-  --pose-csv <image_matched_poses.csv> `
-  --range-manifest <registered_ranges.json> `
+  --pose-csv <poses.csv> `
+  --pose-match-mode timestamp `
+  --frame-times-csv <frame_times.csv> `
+  --pose-timestamp-tolerance-s 0.05 `
+  --association-method spatial-cell `
+  --association-cell-m 0.12 `
+  --max-frames 0 `
   --output outputs/mapping
 ```
 
-The pose interface supports filename-based matching and explicit timestamp
-matching. Use `--pose-match-mode timestamp --frame-times-csv <frame_times.csv>`
-when the acquisition pipeline provides image and pose timestamps. A registered
-radial-range manifest can additionally be supplied through `--range-manifest`
-for range-aware row filtering and within-pass observation association. These
-operations require calibrated, registered radial ranges and measured camera
-poses. Without range data, nearest-row filtering and cross-frame association
-are disabled; mapping uses the configured row-plane projection.
+Timestamp soft synchronization pairs each image with its unique nearest pose
+within the configured tolerance (default 0.05 s). Unmatched frames are skipped;
+when images compete for one pose, the closest pair is retained. Accepted frames
+are processed in acquisition-time order. `synchronization.json` exports matched
+timestamps, residuals, and skipped-frame reasons. Filename matching is also
+available with `--pose-match-mode filename`.
+
+The default spatial-cell association groups repeated observations using CSV
+poses and row-plane or registered-range projection. Route, viewing side, cell
+size and maximum frame gap control the grouping. Supply `--range-manifest
+<registered_ranges.json>` to use measured ranges and lateral row-band filtering.
+`--association-method measured-distance` selects the measured-range distance
+matching mode.
 
 `summary.json` records the processing mode, count/grouping units, input sources,
 row-filter status, and association status. `evidence.json` records processing

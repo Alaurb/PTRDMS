@@ -79,7 +79,7 @@ class RevisionTests(unittest.TestCase):
             file.write_text(file.read_text()+"a.jpg,0,0,1.2,0,rowA\n")
             with self.assertRaises(ValueError): load_pose_csv(file,Image.new("RGB",(100,100)))
 
-    def test_timestamp_pose_matching_is_unique_and_fails_closed(self):
+    def test_timestamp_soft_sync_skips_unmatched_and_ambiguous_frames(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             pose_csv = root / "poses.csv"
@@ -99,16 +99,18 @@ class RevisionTests(unittest.TestCase):
             self.assertEqual(matched["a.jpg"].timestamp_s, 10.000)
             self.assertEqual(matched["a.jpg"].frame_timestamp_s, 10.010)
             self.assertAlmostEqual(matched["a.jpg"].match_delta_s, .010)
-            with self.assertRaises(ValueError):
-                match_poses_by_timestamp([Path("a.jpg")], lookup, load_frame_times_csv(frame_csv), .005)
+            rejected = []
+            self.assertEqual(match_poses_by_timestamp([Path("a.jpg")], lookup, load_frame_times_csv(frame_csv), .005, rejected=rejected), {})
+            self.assertEqual(rejected[0]["reason"], "outside_timestamp_tolerance")
             pose_csv.write_text(
                 "timestamp_s,x,y,z,yaw,route\n"
                 "10.000,1,0,1.15,0,rowA\n"
                 "10.020,2,0,1.15,0,rowA\n"
             )
             ambiguous = load_pose_csv(pose_csv, Image.new("RGB", (100, 100)), allow_timestamp_only=True)
-            with self.assertRaises(ValueError):
-                match_poses_by_timestamp([Path("a.jpg")], ambiguous, {"a.jpg": 10.010}, .02)
+            rejected = []
+            self.assertEqual(match_poses_by_timestamp([Path("a.jpg")], ambiguous, {"a.jpg": 10.010}, .02, rejected=rejected), {})
+            self.assertEqual(rejected[0]["reason"], "ambiguous_nearest_pose")
 
     def test_pipeline_accepts_timestamp_pose_mode(self):
         import demo
@@ -124,11 +126,12 @@ class RevisionTests(unittest.TestCase):
             (root / "input").mkdir()
             Image.new("RGB", (202, 101), "green").save(root / "input" / "a.jpg")
             Image.new("RGB", (202, 101), "green").save(root / "input" / "b.jpg")
+            Image.new("RGB", (202, 101), "green").save(root / "input" / "unmatched.jpg")
             Image.new("RGB", (100, 100), "white").save(root / "map.png")
             (root / "poses.csv").write_text(
                 "timestamp_s,x,y,z,yaw,route\n10.000,1,2,1.15,0,rowA\n10.100,2,2,1.15,0,rowA\n"
             )
-            (root / "frame_times.csv").write_text("frame,timestamp_s\na.jpg,10.010\nb.jpg,10.090\n")
+            (root / "frame_times.csv").write_text("frame,timestamp_s\na.jpg,10.090\nb.jpg,10.010\nunmatched.jpg,20.000\n")
             argv = [
                 "demo.py", "--input", str(root / "input"), "--map", str(root / "map.png"),
                 "--output", str(root / "out"), "--pose-csv", str(root / "poses.csv"),
@@ -144,6 +147,11 @@ class RevisionTests(unittest.TestCase):
             self.assertIn("match_delta_s", trajectory)
             self.assertIn("a.jpg", trajectory)
             self.assertIn("b.jpg", trajectory)
+            self.assertLess(trajectory.index("b.jpg"), trajectory.index("a.jpg"))
+            self.assertNotIn("unmatched.jpg", trajectory)
+            sync = json.loads((root / "out" / "synchronization.json").read_text())
+            self.assertEqual((sync["requested_frames"], sync["matched_frames"], sync["skipped_frames"]), (3, 2, 1))
+            self.assertEqual(sync["rejected"][0]["reason"], "outside_timestamp_tolerance")
 
     def test_six_faces(self):
         faces=extract_all_faces(Image.new("RGB",(256,128),"red"),64)

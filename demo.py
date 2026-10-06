@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default="demo_output", help="Output directory")
     parser.add_argument("--pose-csv", help="Measured poses in frame,x,y,z,yaw[,route,timestamp_s] CSV format")
     parser.add_argument("--pose-match-mode", choices=["filename", "timestamp"], default="filename",
-                        help="Bind panoramas to poses by filename (default) or timestamp nearest-neighbour")
+                        help="Bind panoramas to poses by filename (default) or nearest-timestamp soft synchronization")
     parser.add_argument("--frame-times-csv", help="Panorama acquisition times in frame,timestamp_s CSV format; required for timestamp pose matching")
     parser.add_argument("--pose-timestamp-tolerance-s", type=float, default=.05,
                         help="Maximum panorama-to-pose timestamp difference for timestamp matching")
@@ -60,6 +60,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--row-tolerance-m", type=float, default=.35)
     parser.add_argument("--association-distance-m", type=float, default=.12)
     parser.add_argument("--association-gap", type=int, default=3)
+    parser.add_argument("--association-method", choices=["spatial-cell", "measured-distance"], default="spatial-cell",
+                        help="Group repeated observations within spatial cells, or by measured 3D distance")
+    parser.add_argument("--association-cell-m", type=float, default=.12, help="Spatial cell side length in metres")
     return parser.parse_args()
 
 
@@ -80,6 +83,8 @@ def run(args: argparse.Namespace) -> Path:
         raise ValueError("Map, row distance and row tolerance must be positive")
     if not math.isfinite(args.camera_yaw_offset_deg):
         raise ValueError("Camera yaw offset must be finite")
+    if not math.isfinite(args.association_cell_m) or args.association_cell_m <= 0:
+        raise ValueError("Spatial cell size must be finite and positive")
     if args.range_manifest and not args.pose_csv:
         raise ValueError("Measured range requires matched camera poses via --pose-csv")
     if args.pose_match_mode == "timestamp":
@@ -118,6 +123,8 @@ def run(args: argparse.Namespace) -> Path:
         detector_imgsz=args.detector_imgsz,
         classifier_imgsz=args.classifier_imgsz,
     )
+    requested_frames = len(selected)
+    synchronization_rejections: list[dict[str, object]] = []
     if args.pose_csv:
         pose_lookup = load_pose_csv(
             args.pose_csv,
@@ -131,7 +138,22 @@ def run(args: argparse.Namespace) -> Path:
                 pose_lookup,
                 load_frame_times_csv(args.frame_times_csv),
                 args.pose_timestamp_tolerance_s,
+                rejected=synchronization_rejections,
             )
+            selected = [path for path in selected if path.name in pose_lookup]
+            matched_records = [dict(frame=path.name,
+                                    frame_timestamp_s=pose_lookup[path.name].frame_timestamp_s,
+                                    pose_timestamp_s=pose_lookup[path.name].timestamp_s,
+                                    match_delta_s=pose_lookup[path.name].match_delta_s)
+                               for path in selected]
+            (output_dir / "synchronization.json").write_text(json.dumps(dict(
+                method="nearest_timestamp_soft_sync", tolerance_s=args.pose_timestamp_tolerance_s,
+                requested_frames=requested_frames, matched_frames=len(selected),
+                skipped_frames=len(synchronization_rejections), matched=matched_records,
+                rejected=synchronization_rejections), indent=2), encoding="utf-8")
+            if not selected:
+                raise ValueError("No image/pose pairs within the timestamp tolerance; see synchronization.json")
+            selected.sort(key=lambda path: (pose_lookup[path.name].frame_timestamp_s, path.name))
     else:
         pose_lookup = generate_demo_poses(all_images, map_image, args.map_width_m)
 
@@ -204,7 +226,9 @@ def run(args: argparse.Namespace) -> Path:
         print(f"[{index:02d}/{len(selected):02d}] {panorama_path.name}: {frame_count} candidates")
 
     pose_source = used_poses[0].source if used_poses else "unknown"
-    tracks, links = associate(detections, used_poses, args.association_distance_m, args.association_gap)
+    tracks, links = associate(detections, used_poses, args.association_distance_m, args.association_gap,
+                             cell_size_m=args.association_cell_m if args.association_method == "spatial-cell" else None,
+                             require_measured=args.association_method == "measured-distance")
     for name, payload in (("tracks.json", tracks), ("association_links.json", links), ("rejected_observations.json", rejected)):
         (output_dir / name).write_text(json.dumps(payload, indent=2), encoding="utf-8")
     (output_dir / "candidate_audit.json").write_text(json.dumps(candidate_audit, indent=2), encoding="utf-8")
@@ -213,9 +237,13 @@ def run(args: argparse.Namespace) -> Path:
     map_image.save(output_dir / "map_base.png", quality=95)
     summary = write_summary(output_dir, used_poses, detections, detector.name, pose_source, len(selected), taxonomy)
     summary.update(processing_mode="offline_batch", range_source="registered_measured_range" if range_evidence else "assumed_row_plane",
+                   requested_frames=requested_frames, synchronization_skipped_frames=len(synchronization_rejections),
+                   synchronization_method="nearest_timestamp_soft_sync" if args.pose_match_mode == "timestamp" else "filename",
                    nearest_row_filter="measured_range_band" if range_evidence else "not_verified_no_depth",
-                   association_status="spatial_candidates" if range_evidence else "disabled_no_measured_geometry",
-                   candidate_tracks=sum(t["status"] == "association_candidate" for t in tracks), rejected_observations=len(rejected))
+                   association_status="spatial_candidates" if range_evidence else
+                   "projected_spatial_cells" if args.association_method == "spatial-cell" and pose_source == "pose_csv" else "disabled_no_measured_geometry",
+                   association_method=args.association_method, association_cell_m=args.association_cell_m,
+                   candidate_tracks=sum(t["status"] in ("association_candidate", "projected_association") for t in tracks), rejected_observations=len(rejected))
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     evidence = build_evidence_manifest(
         summary, used_poses, processing_mode=summary["processing_mode"], range_source=summary["range_source"]
@@ -267,6 +295,8 @@ def run(args: argparse.Namespace) -> Path:
         "row_tolerance_m": args.row_tolerance_m,
         "association_distance_m": args.association_distance_m,
         "association_gap": args.association_gap,
+        "association_method": args.association_method,
+        "association_cell_m": args.association_cell_m,
     }
     for package in ("ultralytics", "torch", "torchvision"):
         try:

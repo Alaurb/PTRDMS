@@ -9,8 +9,8 @@
 | Vertical image information | `SpatialDetection` and CSV exports | Bounding-box coordinates and view dimensions |
 | Spatial display | `project_detection()` and `write_html_report()` | Pose-based row-plane or registered-range projection |
 | Row filtering | Range-projection branch in `demo.py` | Registered ranges and configured lateral row band |
-| Cross-frame association | `ripeness_demo/evidence.py:associate()` | CSV poses, measured ranges, route/side and distance thresholds |
-| Localization import | `load_pose_csv()` | Filename or timestamp matching; trajectory export |
+| Cross-frame association | `ripeness_demo/evidence.py:associate()` | CSV poses, spatial cells or measured-distance matching, route/side and frame gap |
+| Localization import | `load_pose_csv()` | Filename matching or timestamp soft synchronization; trajectory and matching-log exports |
 
 Evaluation protocols and recognition results are documented in
 [detector evaluation](detector_evaluation.md) and

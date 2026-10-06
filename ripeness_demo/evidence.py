@@ -1,9 +1,9 @@
-"""Measured-range quality gates and conservative within-pass association."""
+"""Range quality gates and within-pass spatial observation association."""
 from __future__ import annotations
 
 import json
 import math
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -58,15 +58,21 @@ def foreground_range(ranges, bbox, min_samples=9):
     return float(np.median(valid))
 
 
-def associate(detections, poses, distance_m=.12, max_frame_gap=3):
-    """One-to-one greedy spatial candidates per frame, never on synthetic geometry.
+def associate(detections, poses, distance_m=.12, max_frame_gap=3, *, cell_size_m=None, require_measured=True):
+    """One-to-one observation matching by spatial cell or measured distance.
 
-    IDs are local to one pass. Class is not a hard gate: maturity may change.
-    Association is heuristic and must be evaluated against manually assigned IDs.
+    IDs are local to one pass and route/side. A cell retains its initial key,
+    while its exported location averages linked observations. Class changes are
+    accumulated as confidence-weighted votes. Synthetic paths remain separate.
     """
     if not math.isfinite(distance_m) or distance_m <= 0 or max_frame_gap < 1:
         raise ValueError("Invalid association thresholds")
+    if cell_size_m is not None and (not math.isfinite(cell_size_m) or cell_size_m <= 0):
+        raise ValueError("Spatial cell size must be finite and positive")
+    def cell(xyz):
+        return tuple(math.floor(float(v) / cell_size_m) for v in xyz) if cell_size_m else None
     tracks, links = [], []
+    cell_tracks = defaultdict(list)
     eligible = all(p.source == "pose_csv" for p in poses)
     by_frame = {}
     for detection in detections:
@@ -75,18 +81,19 @@ def associate(detections, poses, distance_m=.12, max_frame_gap=3):
         current = by_frame.get(pose.frame, [])
         candidates = []
         for di, detection in enumerate(current):
-            if not eligible or detection.position_source != "measured_radial_range":
+            if not eligible or (require_measured and detection.position_source != "measured_radial_range"):
                 continue
             xyz = np.array([detection.x, detection.y, detection.z])
-            for ti, track in enumerate(tracks):
+            potential_tracks = ((ti, tracks[ti]) for ti in cell_tracks[(pose.route, detection.side, cell(xyz))]) if cell_size_m else enumerate(tracks)
+            for ti, track in potential_tracks:
                 if (track["route"], track["side"]) != (pose.route, detection.side):
                     continue
                 if index - track["last_index"] > max_frame_gap:
                     continue
-                if not track["measured"]:
+                if require_measured and not track["measured"]:
                     continue
                 distance = float(np.linalg.norm(xyz - track["xyz"]))
-                if distance <= distance_m:
+                if (cell(xyz) == track["cell"] if cell_size_m else distance <= distance_m):
                     candidates.append((distance, di, ti))
         matched_d, matched_t = set(), set()
         assignments = {}
@@ -103,7 +110,10 @@ def associate(detections, poses, distance_m=.12, max_frame_gap=3):
                 tracks.append(dict(track_id=f"T{ti+1:06d}", route=pose.route,
                                    side=detection.side, xyz=xyz, first_frame=pose.frame,
                                    last_frame=pose.frame, last_index=index, observations=0,
-                                   votes=Counter(), measured=eligible and detection.position_source == "measured_radial_range"))
+                                   votes=Counter(), cell=cell(xyz), eligible=eligible,
+                                   measured=eligible and detection.position_source == "measured_radial_range"))
+                if cell_size_m:
+                    cell_tracks[(pose.route, detection.side, cell(xyz))].append(ti)
             track = tracks[ti]
             n = track["observations"]
             track["xyz"] = (track["xyz"] * n + xyz) / (n + 1)
@@ -120,5 +130,7 @@ def associate(detections, poses, distance_m=.12, max_frame_gap=3):
                          x=float(track["xyz"][0]), y=float(track["xyz"][1]), z=float(track["xyz"][2]),
                          first_frame=track["first_frame"], last_frame=track["last_frame"],
                          observations=track["observations"], class_name=track["votes"].most_common(1)[0][0],
-                         status="association_candidate" if track["measured"] else "unassociated_observation"))
+                         spatial_cell=list(track["cell"]) if track["cell"] is not None else None,
+                         status="association_candidate" if track["measured"] else
+                         "projected_association" if track["eligible"] and not require_measured else "unassociated_observation"))
     return rows, links
