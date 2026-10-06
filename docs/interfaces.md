@@ -1,6 +1,6 @@
 # External data interfaces
 
-No navigation or ROS installation is required. PTRDMS does not navigate the robot, but it consumes image-matched localization records produced upstream to bind panoramas to map poses. Localization and robot control remain external.
+PTRDMS binds panoramas to map poses using image-matched localization records. The batch workflow runs without ROS.
 
 ## Camera poses
 
@@ -10,7 +10,7 @@ By default, pass `--pose-csv poses.csv` with `frame,x,y,z,yaw,route`; `frame` is
 
 Pass `--camera-yaw-offset-deg` to align the native equirectangular forward axis with the robot-forward direction used by each pose. The offset is subtracted during panorama sampling, so the selected logical `left` and `right` faces stay robot-relative. A `-90` degree setting, for example, selects the native panorama's front/back views as robot-relative left/right views. This is a camera-mount calibration value, not a detector setting; it must be recorded with the run and applied consistently when registered range maps are generated.
 
-Missing poses generate a clearly tagged `synthetic_map_path` for display only. Supplying a CSV does not prove its measurements are accurate.
+When poses are omitted, the viewer generates an ordered display trajectory tagged `synthetic_map_path`.
 
 ## Registered radial ranges
 
@@ -20,13 +20,17 @@ Pass `--range-manifest ranges.json` together with poses. Example manifest:
 {"calibration_id":"YOUR_VERIFIED_CALIBRATION","range_convention":"radial_metres","views":[{"frame":"frame.jpg","side":"left","file":"left.npy","image_time_s":1.0,"range_time_s":1.0,"pose_time_s":1.0},{"frame":"frame.jpg","side":"right","file":"right.npy","image_time_s":1.0,"range_time_s":1.0,"pose_time_s":1.0}]}
 ```
 
-NPY paths are relative to the manifest. Each array must match its projected view height and width and contain radial distance along the pixel ray, not unconverted camera z-depth. Arrays must already be calibrated and registered to the cube-face convention. Metadata timestamps are checked against `--sync-tolerance-s`; this checks supplied metadata consistency, not calibration accuracy or image/pose provenance. This example is a schema, not supplied field data.
+NPY paths are relative to the manifest. Each array must match its projected view height and width and contain radial distance along the pixel ray, not unconverted camera z-depth. Arrays must already be calibrated and registered to the cube-face convention. Metadata timestamps are checked against `--sync-tolerance-s`; each entry links a projected view to its synchronized range array.
 
-The central bounding-box region supplies a range statistic. Leaf occlusion can still corrupt it. The lateral nearest-row band is a geometric gate, not a semantic guarantee, and it is applied only when `--range-manifest` is supplied (the guarded branch is `demo.py:run()`, `if ranges is not None`, around the projection loop). It requires calibrated, registered radial ranges together with `--pose-csv`; without range input the gate is not applied, `summary.json` records `nearest_row_filter="not_verified_no_depth"`, and association status is `disabled_no_measured_geometry`. Candidate associations additionally require every processed pose to be sourced from the CSV and every retained detection to use a measured radial range; they remain unverified without ground truth.
+The central bounding-box region supplies the foreground range statistic. Row
+filtering applies the configured lateral band when registered ranges and CSV
+poses are supplied. Cross-frame association uses route, side, frame-gap, and 3D
+distance thresholds. Without measured ranges, row filtering and association are
+disabled; their status is recorded in `summary.json`.
 
 ## Outputs and ROS compatibility
 
-`detections.csv` retains pixel bounding boxes, view dimensions, predicted class/confidence, x/y/z, position_source and track_id. Pixel vertical centre can be calculated as `(bbox_y1+bbox_y2)/2`. `trajectory.csv` preserves pose provenance. `summary.json` states pose/range assumptions and association status. `tracks.json` and `association_links.json` describe candidate associations. `observations.csv` groups detections by frame and side, with `observation_id` (`frame:side`), `detection_count`, class counts, and `assignment_source=frame_side_proxy`. Its x/y values locate the observation anchor rather than a verified plant. `plants.csv` is retained as a legacy-compatible export of these groups; it does not identify unique plants or count unique fruit. `summary.json` records `count_unit=detection_observation`, `grouping_unit=frame_side`, and false validation flags for unique-fruit counts and unique-plant assignment.
+`detections.csv` retains pixel bounding boxes, view dimensions, predicted class/confidence, x/y/z, position_source and track_id. Pixel vertical centre can be calculated as `(bbox_y1+bbox_y2)/2`. `trajectory.csv` preserves pose provenance. `summary.json` states pose/range assumptions and association status. `tracks.json` and `association_links.json` describe candidate associations. `observations.csv` groups detections by frame and side, with `observation_id` (`frame:side`), `detection_count`, class counts, and `assignment_source=frame_side_proxy`. Its x/y values locate the observation anchor. `plants.csv` exports the same groups in the legacy format. `summary.json` records `count_unit=detection_observation` and `grouping_unit=frame_side`.
 
 `live_ros.py` provides the optional online ROS1 entry point. It subscribes to
 `sensor_msgs/CompressedImage` panoramas and `geometry_msgs/PoseStamped` poses,

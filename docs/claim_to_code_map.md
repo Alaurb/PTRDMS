@@ -1,23 +1,21 @@
-# Claim-to-code map
+# Feature-to-code map
 
-This map identifies the public implementation that supports each repository claim and
-the conditions under which it operates. It is not a performance-validation table.
-Where measured geometry or independent ground truth is absent, the corresponding
-outputs remain observations or candidates rather than validated field quantities.
+| Feature | Code location | Usage |
+|---|---|---|
+| Panorama reprojection | `ripeness_demo/panorama.py:extract_all_faces()` and `extract_side_views()` | Export six faces with `--export-six-faces`; inference uses left/right views |
+| Detection and four-stage classification | `ripeness_demo/detectors.py:TwoStageYoloDetector` | Use `--detector two-stage` with both model weights |
+| Foreground range extraction | `ripeness_demo/evidence.py:RangeEvidence` | Supply registered `radial_metres` arrays with calibration and timestamps |
+| Row-band filtering | Range-projection loop in `demo.py:run()` | Supply registered ranges; configure `row_offset_m` and `row_tolerance_m` |
+| Cross-frame association | `ripeness_demo/evidence.py:associate()` | Supply CSV poses and measured radial ranges; configure frame-gap and distance thresholds |
+| Spatial projection | `ripeness_demo/mapping.py:project_detection()` | Pose plus row plane or registered radial range; recorded-coordinate view displays exported x/y/z |
+| Processing metadata | `ripeness_demo/artifacts.py` | `evidence.json` records processing mode and input provenance |
+| Batch processing | `demo.py:run()` | Input panorama folder; annotated images, CSV/JSON files and local report |
+| Pose matching | `load_pose_csv()` and `match_poses_by_timestamp()` | Filename matching or unique nearest timestamp within tolerance |
+| Display trajectory | `generate_demo_poses()` | Provides an ordered viewing path when poses are omitted |
+| ROS adapter | `live_ros.py` and `ripeness_demo/online.py:TimedPoseBuffer` | Compressed panoramas and timestamped pose messages |
+| ROS bag pose export | `scripts/export_rosbag_pose_evidence.py` | Export trigger timestamps and RTK path coordinates |
 
-| Capability | Code location | Enablement condition | Validation status |
-|---|---|---|---|
-| Six perspective reprojections and left/right inference selection | `ripeness_demo/panorama.py:extract_all_faces()`; `extract_side_views()`; `demo.py:run()` | Every input panorama is geometrically reprojected. All six faces are exported only with `--export-six-faces`; inference consumes left/right faces. | Projection and interface tests are public; no claim that faces are camera-supplied images. |
-| One-class tomato detection and four-stage classification | `ripeness_demo/detectors.py:TwoStageYoloDetector`; `build_detector()`; `demo.py:run()` | Invoke `demo.py --detector two-stage` with both released weights. | Detector and crop-classifier evaluations are separate. Four-stage scores are crop-level, not end-to-end panorama-system accuracy. |
-| Registered radial-range foreground statistic | `ripeness_demo/evidence.py:RangeEvidence.load()`; `foreground_range()` | `--range-manifest` plus matched `--pose-csv`; `radial_metres`, a calibration ID, image-size agreement, and timestamp tolerance are required. | The central half-box median rejects inadequate/invalid samples; leaf occlusion and calibration quality require independent evaluation. |
-| Nearest-row band gate | `demo.py:run()` (range-projection loop, `if ranges is not None`) | Only with registered radial ranges. Detections outside `row_offset_m ± row_tolerance_m` are written to `rejected_observations.json` with `outside_nearest_row_band`. | A geometric filter only; no semantic guarantee of nearest-row identity. Without range data it is disabled and reported as `not_verified_no_depth`. |
-| Conservative within-pass cross-frame association | `ripeness_demo/evidence.py:associate()` | Every pose must have `source == "pose_csv"`, and each associated detection must have `position_source == "measured_radial_range"`; route/side, maximum frame gap, and 3D-distance thresholds also apply. | Track IDs are heuristic association candidates, local to one pass; manually assigned fruit IDs are required for validation. |
-| Per-fruit estimated `(x, y, z)` projection | `ripeness_demo/mapping.py:project_detection()`; `ripeness_demo/report.py:fruitPosition()` | Coordinates use a pose plus either registered radial range or the assumed row plane. The local report’s **View: recorded coordinates** mode uses `cube.x/y/z` directly. | Assumed-row-plane output is illustrative only. Registered-range output is still a candidate until independently evaluated. |
-| Evidence-boundary artifact and visible report banner | `ripeness_demo/artifacts.py:build_evidence_manifest()`; `write_evidence_manifest()`; `ripeness_demo/report.py:HTML_TEMPLATE` | Every `demo.py` run writes `evidence.json`; the report displays its headline. | Status distinguishes `unvalidated_observation_layout`, `measured_geometry_candidate`, and archived replay; no status establishes unique-fruit or spatial accuracy. |
-| Batch and online processing | `demo.py:run()`; `live_ros.py`; `ripeness_demo/online.py:TimedPoseBuffer` | Batch mode accepts a panorama directory. Online mode accepts ROS1 `CompressedImage` panoramas and `PoseStamped` localization messages, with unique nearest timestamp association. | Both modes use the same projection, inference, mapping, and report formats. |
-| Pose provenance, timestamp matching, and synthetic fallback | `ripeness_demo/mapping.py:load_pose_csv()`; `load_frame_times_csv()`; `match_poses_by_timestamp()`; `generate_demo_poses()` | Default `--pose-match-mode filename` uses image keys. Timestamp mode requires `--frame-times-csv`, accepts only a unique nearest pose within the configured tolerance, and exports both source/frame times plus their delta in `trajectory.csv`; otherwise a filename-order display path is generated. | Timestamp matching is nearest-neighbour, not interpolation. Synthetic paths are labelled `synthetic_map_path` and cannot support counting, coverage, or spatial-accuracy claims. |
-| Image-free ROS bag timing/path fixture | `scripts/export_rosbag_pose_evidence.py`; `evidence/test_bag_path_only/metadata.json` | Reads only `/camera_agent/shot_trigger` and `/rtk_agent/pvtsln_sync` using ROS bag record time; exports opaque trigger IDs and RTK-derived path coordinates. | The committed fixture contains 1,121 matched triggers and no image bytes. It tests time-association inputs, not fruit-position or navigation accuracy. |
-
-The runnable workflow and its input/output contract are documented in `README.md` and
-`docs/interfaces.md`. The four-stage crop corpus, annotations, five fixed splits, and
-exclusion list are available separately as [Zenodo Version v2: 10.5281/zenodo.22827683](https://doi.org/10.5281/zenodo.22827683).
+See [interfaces](interfaces.md) for schemas and coordinate conventions,
+and the [README](../README.md) for the batch workflow. The reviewed crop dataset,
+annotations and split manifests are available on
+[Zenodo](https://doi.org/10.5281/zenodo.22827683).

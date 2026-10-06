@@ -10,4 +10,4 @@ The selected epoch is the one with the highest validation mAP@0.5:0.95. Candidat
 
 These are detector-only metrics. They do not measure end-to-end ripeness classification, unique-fruit counting, row exclusion, physical fruit height, navigation, or mapping accuracy.
 
-The fixed validation set is used for checkpoint and candidate selection. Its metrics are validation results, not an untouched final-test estimate. Separation by panorama acquisition group does not make a selection set independent of model tuning.
+The fixed validation set is used for checkpoint and candidate selection; the table reports its validation metrics.

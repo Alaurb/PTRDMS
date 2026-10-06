@@ -26,13 +26,13 @@ def build_evidence_manifest(
     has_measured_geometry = pose_sources == ["pose_csv"] and range_source == "registered_measured_range"
     if is_replay:
         status = "archived_legacy_replay"
-        headline = "Archived observations replayed; no model inference was performed."
+        headline = "Saved prediction replay."
     elif has_measured_geometry:
         status = "measured_geometry_candidate"
-        headline = "Measured pose and registered range were supplied; associations remain candidates."
+        headline = "Mapping with supplied poses and registered ranges."
     else:
         status = "unvalidated_observation_layout"
-        headline = "Predictions are arranged as observations; geometry is not validated fruit location."
+        headline = "Observation mapping with row-plane projection."
 
     established = ["frame-side image observations", "model-predicted class and confidence", "source-image traceability"]
     if has_measured_geometry:

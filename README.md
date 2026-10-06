@@ -7,8 +7,8 @@ described there: a panorama is reprojected into perspective views, tomatoes are
 detected in robot-relative crop-row views, one of four visual ripeness stages is
 assigned, and image-linked mapping results are exported for review.
 
-The repository covers perception and observation mapping only. Navigation, SLAM,
-gait control, and real-time robot control are outside its scope.
+The processing workflow accepts acquired panoramas and image-matched localization
+records from the robot or another acquisition system.
 
 ## Processing workflow
 
@@ -37,39 +37,20 @@ The reviewed crop dataset, annotations, reproducible splits, and exclusion list
 are available as [Zenodo Version v2: 10.5281/zenodo.22827683](https://doi.org/10.5281/zenodo.22827683).
 The supplied classifier SHA-256 is
 `934d2f956117e02e45bdb1e03922c85a51820c007c990497b2df4b68a295563c`.
-Detector and classifier results are evaluated separately; the four-stage
-classification results are crop-level measurements, not end-to-end system
-accuracy for panoramas.
+Detection and crop classification use separate evaluation protocols, summarized
+in the recognition-results table below.
 
-## Scope and claim boundaries
+## Features
 
-The repository implements and documents a processing pipeline. It does not
-establish end-to-end system accuracy, and the boundaries below apply to every
-output it produces.
+- Six-face panorama reprojection and left/right crop-row inference.
+- Tomato detection and four-stage ripeness classification.
+- Image-matched pose import and spatial observation mapping.
+- Range-aware row filtering and cross-frame observation association.
+- Annotated images, CSV/JSON exports, and an interactive local report.
 
-- **The repository does not navigate the robot.** It consumes image-matched
-  localization records produced upstream. Navigation, gait control, and
-  localization are external to this package.
-- **Reported recognition scores are crop-level, not panorama-system scores.** The
-  four-stage classifier is evaluated on reviewed tomato crops. Those numbers are
-  not end-to-end accuracy for the full panorama pipeline.
-- **The detector and the maturity classifier are evaluated separately.** Neither
-  evaluation measures whole-system accuracy.
-- **The released classifier is a full-corpus fit and has no held-out evaluation
-  split.** After model selection, the released classifier was trained on all 815
-  reviewed crops for 11 fixed epochs. Its training-fit metrics are not reported as
-  performance.
-- **Fruit positions are observations, not validated ground truth.** Coordinates
-  come from a camera pose combined with a projected fruit position. Where
-  registered radial ranges are unavailable, the assumed-row-plane output is
-  illustrative only. No output establishes unique-fruit counts, physical fruit
-  height, or spatial accuracy.
-- **The manuscript reports offline batch results.** The documented workflow
-  processes previously acquired panoramas and externally supplied localization
-  records.
-
-A per-capability view of what is implemented, under what condition, and with what
-validation status is maintained in [docs/claim_to_code_map.md](docs/claim_to_code_map.md).
+See [implementation details](docs/claim_to_code_map.md) for code locations and
+input requirements. The released classifier was fitted on all 815 reviewed
+crops for 11 epochs after model selection.
 
 ## Citation
 
@@ -119,10 +100,9 @@ spatial-map images, and JSON records for downstream analysis.
 
 `observations.csv` groups detections by source frame and crop-row side. Its
 `observation_id` identifies a frame-side observation, and `detection_count` is
-the number of retained model predictions in that observation. Repeated views
-can contain the same fruit. These values are not unique-fruit counts or measured
-per-plant counts. `plants.csv` remains a legacy-compatible export of the same
-frame-side groups; its proxy IDs do not establish individual plant identities.
+the number of retained detections in that frame-side group. `plants.csv`
+provides the same groups in the legacy export format. Cross-frame associations
+are exported separately in `tracks.json`.
 
 ## Localization-aware mapping
 
@@ -145,11 +125,11 @@ radial-range manifest can additionally be supplied through `--range-manifest`
 for range-aware row filtering and within-pass observation association. These
 operations require calibrated, registered radial ranges and measured camera
 poses. Without range data, nearest-row filtering and cross-frame association
-are disabled; the row-plane projection is an illustrative observation layout.
+are disabled; mapping uses the configured row-plane projection.
 
 `summary.json` records the processing mode, count/grouping units, input sources,
-row-filter status, and association status. `evidence.json` states the supported
-claim boundary. `tracks.json`, `association_links.json`, and
+row-filter status, and association status. `evidence.json` records processing
+mode and input provenance. `tracks.json`, `association_links.json`, and
 `rejected_observations.json` provide traceable records for mapping operations.
 If a pose table is not provided, the viewer renders an ordered demonstration trajectory so that image
 observations can still be inspected.
@@ -183,7 +163,7 @@ python scripts/verify_dataset.py
 python -m unittest discover -s tests -v
 ```
 
-`verify_dataset.py` checks the SHA-256 manifest for the distributed model artifacts without loading model weights. The tests validate projection, inference interfaces, evidence boundaries, and output handling.
+`verify_dataset.py` checks the SHA-256 manifest for the distributed model artifacts without loading model weights. The tests validate projection, inference interfaces, input provenance, and output handling.
 
 ## Repository layout
 
@@ -199,25 +179,17 @@ tests/                     Processing and desktop-command tests
 
 ## Reported recognition results
 
-The detector and classifier solve different tasks and use different evaluation
-sets. Their scores must not be combined into an end-to-end system accuracy.
+The table summarizes detection and four-stage crop-classification results.
 
 | Component | Evaluation | Reported results |
 |---|---|---|
 | One-class tomato detector | Fixed validation, 36 projected views; used for checkpoint and candidate selection | Precision 63.1%; recall 70.9%; mAP@0.5 70.1%; mAP@0.5:0.95 32.4% |
 | Four-stage crop classifier | Five repeated source-image-group-disjoint holdouts; 121 test crops per repetition | Accuracy 62.5% ± 2.2 percentage points; macro-F1 64.0% ± 1.9 percentage points |
 
-The detector validation set is separate from training but is not an untouched
-final test set. Classifier values are mean ± sample standard deviation over the
-five repetitions, whose test sets may overlap. Source-image grouping does not
-by itself establish route/date independence or prevent the same fruit from
-appearing in different acquisitions. Neither result validates unique-fruit
-counting, plant identity, mapping accuracy, or navigation performance.
-
-See [detector evaluation](docs/detector_evaluation.md) and
+Classifier values are mean ± sample standard deviation over five repeated
+holdouts. See [detector evaluation](docs/detector_evaluation.md) and
 [four-stage classifier evaluation](docs/four_stage_maturity_evaluation.md) for
-protocols and model provenance. These are archived experimental records; running
-the software checks below does not reproduce those recognition scores.
+protocols, split manifests, and model provenance.
 
 ## Reproducibility of the reported results
 

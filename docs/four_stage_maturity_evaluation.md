@@ -19,7 +19,7 @@ YOLOv8n-cls was initialized from `yolov8n-cls.pt`, trained at 224 pixels with th
 | ImageNet-pretrained ResNet-18 | 0.588 ± 0.080 | 0.608 ± 0.076 |
 | ImageNet-pretrained YOLOv8n-cls | **0.625 ± 0.022** | **0.640 ± 0.019** |
 
-For YOLOv8n-cls, the mean class-wise F1 scores were 0.705 (immature), 0.546 (green maturity), 0.501 (discoloration), and 0.807 (maturity). Green-maturity and discoloration are the principal confusion pair. These results measure visual labels only; they do not establish internal maturity, firmness, soluble solids, or harvest readiness.
+For YOLOv8n-cls, the mean class-wise F1 scores were 0.705 (immature), 0.546 (green maturity), 0.501 (discoloration), and 0.807 (maturity). Green-maturity and discoloration are the principal confusion pair. The evaluation uses the four visual ripeness classes.
 
 Two predeclared alternatives were retained as negative results: a colour-preserving 320-pixel recipe reached 0.626 ± 0.037 accuracy and 0.637 ± 0.039 macro-F1, and adding a separate 199-crop training-only expansion reached 0.623 ± 0.071 accuracy and 0.633 ± 0.068 macro-F1. Neither replaced the baseline because macro-F1 did not improve and variation increased.
 

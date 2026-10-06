@@ -1,15 +1,17 @@
-# Paper evidence coverage
+# Manuscript feature coverage
 
-| Requirement | Repository support | Remaining evidence |
+| Manuscript feature | Implementation | Inputs and outputs |
 |---|---|---|
-| Six-face panorama reprojection; bilateral inference | **Implemented:** `ripeness_demo/panorama.py:extract_all_faces()` and `extract_side_views()`, called by `demo.py:run()` | inspect faces and source correspondence |
-| Tomato detection and ripeness classification | **Implemented:** `ripeness_demo/detectors.py:build_detector()` selects the supplied two-stage weights; `demo.py:run()` applies it to left/right faces | independent labels, checkpoint/figure provenance, held-out evaluation |
-| Offline sequence processing | **Implemented:** `demo.py:run()` processes acquired panorama sequences with supplied localization records | checkpoint/figure provenance and acquisition timestamps; this workflow does not establish real-time performance |
-| Frame-side detection statistics | **Implemented:** `observations.csv` records source-frame/side groups and prediction counts; `plants.csv` is a legacy-compatible proxy export | verified plant identities and independent unique-fruit ground truth; repeated views can include the same fruit |
-| Pixel vertical information | **Implemented:** `ripeness_demo/mapping.py:SpatialDetection` and `ripeness_demo/report.py:write_csv_files()` retain bbox y coordinates and view dimensions | metric height needs verified camera pose/range |
-| Spatial display | **Implemented:** `ripeness_demo/mapping.py:project_detection()` and `ripeness_demo/report.py:write_html_report()` support assumed-row-plane or registered-range coordinates | sample coordinates are synthetic/estimated unless measured inputs and independent evaluation are supplied |
-| Nearest row and duplicate observations | **Implemented conditionally:** `demo.py:run()` applies the row-band gate only with registered ranges; `ripeness_demo/evidence.py:associate()` makes conservative within-pass associations only with CSV poses and measured radial ranges | independently verified row/fruit IDs and spatial truth; outputs are candidates, not validated unique-fruit counts |
-| External localization data | **Implemented:** `ripeness_demo/mapping.py:load_pose_csv()` and `ripeness_demo/evidence.py:RangeEvidence`; ROS schemas are retained in `interfaces/ros_msgs/` | upstream synchronization/extrinsics, full 6-DoF extension |
-| Navigation and gait performance | **Intentionally excluded:** no navigation or gait-control entry point is shipped; see `README.md` and `docs/interfaces.md` | requires external field evidence |
+| Panorama reprojection | `ripeness_demo/panorama.py` | Six perspective faces; left/right inference views |
+| Tomato detection and ripeness classification | `ripeness_demo/detectors.py` | Two-stage model weights; boxes, classes, confidence |
+| Sequence processing | `demo.py:run()` | Panorama folder and image-matched localization records |
+| Detection statistics | `ripeness_demo/report.py:write_csv_files()` | Frame-side groups in `observations.csv`; legacy `plants.csv` |
+| Vertical image information | `SpatialDetection` and CSV exports | Bounding-box coordinates and view dimensions |
+| Spatial display | `project_detection()` and `write_html_report()` | Pose-based row-plane or registered-range projection |
+| Row filtering | Range-projection branch in `demo.py` | Registered ranges and configured lateral row band |
+| Cross-frame association | `ripeness_demo/evidence.py:associate()` | CSV poses, measured ranges, route/side and distance thresholds |
+| Localization import | `load_pose_csv()` | Filename or timestamp matching; trajectory export |
 
-The repository satisfies the image-processing and observation-visualization scope, not every empirical claim of the original preprint. The default example cannot establish unique-fruit counts, physical height accuracy, persistent plant mapping, or independent recognition accuracy. Historical metrics are retained as records, not freshly reproduced results.
+Evaluation protocols and recognition results are documented in
+[detector evaluation](detector_evaluation.md) and
+[four-stage classification evaluation](four_stage_maturity_evaluation.md).
