@@ -268,4 +268,3 @@ def gate_velocity(vx, vy, omega, decision, measured_speed, config, fresh, acknow
     if abs(omega) > max_turn_radps:
         ratio = min(ratio, max_turn_radps / abs(omega))
     return vx * ratio, omega * ratio
-
