@@ -55,7 +55,7 @@ output it produces.
   not end-to-end accuracy for the full panorama pipeline.
 - **The detector and the maturity classifier are evaluated separately.** Neither
   evaluation measures whole-system accuracy.
-- **The deployed weights are full-corpus fits and have no held-out evaluation
+- **The released classifier is a full-corpus fit and has no held-out evaluation
   split.** After model selection, the released classifier was trained on all 815
   reviewed crops for 11 fixed epochs. Its training-fit metrics are not reported as
   performance.
@@ -64,9 +64,9 @@ output it produces.
   registered radial ranges are unavailable, the assumed-row-plane output is
   illustrative only. No output establishes unique-fruit counts, physical fruit
   height, or spatial accuracy.
-- **The manuscript reports offline batch results.** An online ROS1 entry point is
-  provided for completeness, but the reported figures come from the offline batch
-  workflow.
+- **The manuscript reports offline batch results.** The documented workflow
+  processes previously acquired panoramas and externally supplied localization
+  records.
 
 A per-capability view of what is implemented, under what condition, and with what
 validation status is maintained in [docs/claim_to_code_map.md](docs/claim_to_code_map.md).
@@ -114,62 +114,15 @@ python demo.py `
 ```
 
 The run creates a local visual report (`index.html`), perspective views,
-annotated detections, `detections.csv`, `trajectory.csv`, spatial-map images,
-and JSON records for downstream analysis.
+annotated detections, `detections.csv`, `observations.csv`, `trajectory.csv`,
+spatial-map images, and JSON records for downstream analysis.
 
-## Online ROS1 operation
-
-> **Scope note.** The online entry point is provided so the same pipeline can be
-> driven by a live stream. **It has not been validated in the field.** The
-> manuscript's reported results come from the offline batch workflow, and no
-> online latency, throughput, or real-time on-board-inference claim is made here
-> or in the manuscript.
-
-PTRDMS can also process a live ROS1 stream. The online entry point subscribes
-to an equirectangular JPEG topic (`sensor_msgs/CompressedImage`) and a
-localization topic (`geometry_msgs/PoseStamped`), matches each panorama to its
-nearest timestamped pose, and continuously refreshes annotated views, tables,
-and the local map report. Raw panoramic frames are processed in memory.
-
-In a ROS1 environment, source the robot workspace and run:
-
-```bash
-python live_ros.py \
-  --map <map-image> \
-  --image-topic /camera/image/compressed \
-  --pose-topic /robot_pose \
-  --result-topic /ptrdms/observations \
-  --output outputs/online \
-  --detector two-stage \
-  --detector-weights models/tomato_detector.pt \
-  --classifier-weights models/tomato_ripeness_classifier.pt
-```
-
-Use `--pose-tolerance-s` to configure the accepted image-to-pose timestamp
-window and `--report-every` to set the report-refresh interval. Each accepted
-frame is also published as a JSON `std_msgs/String` message on `--result-topic`.
-
-### Public online-processing showcase
-
-The repository includes an image-free timing and path fixture exported from a
-ROS bag. It demonstrates the upstream trigger/pose inputs that PTRDMS accepts
-for timestamped observation binding; no panorama bytes, tomato detections, or
-site map are included in this public artifact.
-
-![Image-free trigger and RTK path preview](evidence/test_bag_path_only/path_preview.png)
-
-Run the renderer again with:
-
-```bash
-python scripts/render_path_evidence.py \
-  --input evidence/test_bag_path_only/trigger_pose_trace.csv \
-  --output evidence/test_bag_path_only/path_preview.png
-```
-
-See [evidence/test_bag_path_only/README.md](evidence/test_bag_path_only/README.md)
-for its inputs and scope. The online node emits a compact JSON observation
-message for each accepted frame; [docs/online_showcase.md](docs/online_showcase.md)
-documents the public-facing flow and message fields without exposing field imagery.
+`observations.csv` groups detections by source frame and crop-row side. Its
+`observation_id` identifies a frame-side observation, and `detection_count` is
+the number of retained model predictions in that observation. Repeated views
+can contain the same fruit. These values are not unique-fruit counts or measured
+per-plant counts. `plants.csv` remains a legacy-compatible export of the same
+frame-side groups; its proxy IDs do not establish individual plant identities.
 
 ## Localization-aware mapping
 
@@ -189,11 +142,16 @@ The pose interface supports filename-based matching and explicit timestamp
 matching. Use `--pose-match-mode timestamp --frame-times-csv <frame_times.csv>`
 when the acquisition pipeline provides image and pose timestamps. A registered
 radial-range manifest can additionally be supplied through `--range-manifest`
-for range-aware row filtering and within-pass observation association.
+for range-aware row filtering and within-pass observation association. These
+operations require calibrated, registered radial ranges and measured camera
+poses. Without range data, nearest-row filtering and cross-frame association
+are disabled; the row-plane projection is an illustrative observation layout.
 
-`tracks.json`, `association_links.json`, and `rejected_observations.json`
-provide traceable records for these mapping operations. If a pose table is not
-provided, the viewer renders an ordered demonstration trajectory so that image
+`summary.json` records the processing mode, count/grouping units, input sources,
+row-filter status, and association status. `evidence.json` states the supported
+claim boundary. `tracks.json`, `association_links.json`, and
+`rejected_observations.json` provide traceable records for mapping operations.
+If a pose table is not provided, the viewer renders an ordered demonstration trajectory so that image
 observations can still be inspected.
 
 See [docs/interfaces.md](docs/interfaces.md) for CSV and range-manifest
@@ -238,6 +196,28 @@ scripts/                   Data preparation, evaluation, and verification helper
 docs/                      Interfaces, provenance, class mapping, and evaluations
 tests/                     Processing and desktop-command tests
 ```
+
+## Reported recognition results
+
+The detector and classifier solve different tasks and use different evaluation
+sets. Their scores must not be combined into an end-to-end system accuracy.
+
+| Component | Evaluation | Reported results |
+|---|---|---|
+| One-class tomato detector | Fixed validation, 36 projected views; used for checkpoint and candidate selection | Precision 63.1%; recall 70.9%; mAP@0.5 70.1%; mAP@0.5:0.95 32.4% |
+| Four-stage crop classifier | Five repeated source-image-group-disjoint holdouts; 121 test crops per repetition | Accuracy 62.5% ± 2.2 percentage points; macro-F1 64.0% ± 1.9 percentage points |
+
+The detector validation set is separate from training but is not an untouched
+final test set. Classifier values are mean ± sample standard deviation over the
+five repetitions, whose test sets may overlap. Source-image grouping does not
+by itself establish route/date independence or prevent the same fruit from
+appearing in different acquisitions. Neither result validates unique-fruit
+counting, plant identity, mapping accuracy, or navigation performance.
+
+See [detector evaluation](docs/detector_evaluation.md) and
+[four-stage classifier evaluation](docs/four_stage_maturity_evaluation.md) for
+protocols and model provenance. These are archived experimental records; running
+the software checks below does not reproduce those recognition scores.
 
 ## Reproducibility of the reported results
 

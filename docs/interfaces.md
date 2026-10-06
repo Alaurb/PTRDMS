@@ -26,7 +26,7 @@ The central bounding-box region supplies a range statistic. Leaf occlusion can s
 
 ## Outputs and ROS compatibility
 
-`detections.csv` retains pixel bounding boxes, view dimensions, predicted class/confidence, x/y/z, position_source and track_id. Pixel vertical centre can be calculated as `(bbox_y1+bbox_y2)/2`. `trajectory.csv` preserves pose provenance. `summary.json` states pose/range assumptions and association status. `tracks.json` and `association_links.json` describe candidate associations. `plants.csv` groups observations by frame and side; it does not count unique plants.
+`detections.csv` retains pixel bounding boxes, view dimensions, predicted class/confidence, x/y/z, position_source and track_id. Pixel vertical centre can be calculated as `(bbox_y1+bbox_y2)/2`. `trajectory.csv` preserves pose provenance. `summary.json` states pose/range assumptions and association status. `tracks.json` and `association_links.json` describe candidate associations. `observations.csv` groups detections by frame and side, with `observation_id` (`frame:side`), `detection_count`, class counts, and `assignment_source=frame_side_proxy`. Its x/y values locate the observation anchor rather than a verified plant. `plants.csv` is retained as a legacy-compatible export of these groups; it does not identify unique plants or count unique fruit. `summary.json` records `count_unit=detection_observation`, `grouping_unit=frame_side`, and false validation flags for unique-fruit counts and unique-plant assignment.
 
 `live_ros.py` provides the optional online ROS1 entry point. It subscribes to
 `sensor_msgs/CompressedImage` panoramas and `geometry_msgs/PoseStamped` poses,

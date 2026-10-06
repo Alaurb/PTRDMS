@@ -40,6 +40,7 @@ def build_evidence_manifest(
     not_established = [
         "field-verified four-stage maturity accuracy",
         "unique-fruit count or biological truss identity",
+        "unique-plant identity or per-plant fruit counts",
         "validated metric fruit location without independent geometry evaluation",
     ]
     if is_replay:

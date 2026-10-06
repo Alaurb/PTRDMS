@@ -93,7 +93,7 @@ class CoreTests(unittest.TestCase):
 
     def test_html_report_is_english_only(self):
         self.assertIn('<html lang="en">', HTML_TEMPLATE)
-        self.assertIn("3D tomato-bunch view", HTML_TEMPLATE)
+        self.assertIn("3D ripeness observation view", HTML_TEMPLATE)
         self.assertIn("let coordinateMode=summary.range_source==='registered_measured_range'", HTML_TEMPLATE)
         self.assertIn("Estimated coordinates", HTML_TEMPLATE)
         self.assertIn("not reconstructed stems", HTML_TEMPLATE)
