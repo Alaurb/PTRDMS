@@ -1,0 +1,20 @@
+{
+  "geometry": {
+    "robot_width_m": 0.5,
+    "safety_margin_m": 0.15,
+    "ground_z_m": -0.5,
+    "max_step_up_m": 0.5,
+    "max_step_down_m": 0.1,
+    "max_slope_deg": 25.0,
+    "max_roughness_m": 0.08,
+    "collision_height_m": 1.2,
+    "terrain_trigger_m": 0.04,
+    "normal_speed_mps": 0.4,
+    "terrain_speed_mps": 0.15,
+    "reaction_time_s": 0.3,
+    "braking_accel_mps2": 0.5
+  },
+  "encoding": "16UC1",
+  "intrinsics": [600.0, 600.0, 320.0, 240.0],
+  "optical_to_terrain": [[0, 0, 1, 0], [-1, 0, 0, 0], [0, -1, 0, 0], [0, 0, 0, 1]]
+}

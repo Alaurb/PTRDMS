@@ -1,0 +1,27 @@
+# Merge this layer into move_base's existing local_costmap plugins and settings.
+# Keep the existing LiDAR and inflation layers. Use the actual optical frame.
+depth_obstacles:
+  observation_sources: depth_marking depth_clearing
+  depth_marking:
+    topic: /ptrdms_depth_navigation/obstacles
+    sensor_frame: camera_depth_optical_frame
+    data_type: PointCloud2
+    marking: true
+    clearing: false
+    min_obstacle_height: -3.0
+    max_obstacle_height: 3.0
+    obstacle_range: 4.0
+    observation_persistence: 0.0
+    expected_update_rate: 0.3
+  depth_clearing:
+    topic: /ptrdms_depth_navigation/clearing
+    sensor_frame: camera_depth_optical_frame
+    data_type: PointCloud2
+    marking: false
+    clearing: true
+    min_obstacle_height: -3.0
+    max_obstacle_height: 3.0
+    raytrace_range: 4.0
+    observation_persistence: 0.0
+    expected_update_rate: 0.3
+  max_obstacle_height: 3.0

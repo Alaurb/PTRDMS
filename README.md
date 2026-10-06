@@ -42,6 +42,9 @@ in the recognition-results table below.
 
 ## Features
 
+- D435i depth reconstruction, local obstacle cells and terrain gait decisions;
+  [depth navigation](docs/depth_navigation.md) includes replay and ROS integration.
+
 - Six-face panorama reprojection and left/right crop-row inference.
 - Tomato detection and four-stage ripeness classification.
 - Image-matched pose import and spatial observation mapping.

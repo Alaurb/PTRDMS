@@ -2,6 +2,8 @@
 
 | Feature | Code location | Usage |
 |---|---|---|
+| Depth terrain assessment and gait supervision | `ripeness_demo/depth_navigation.py`, `depth_ros.py` | Calibrated D435i depth, timestamped TF, obstacle costmap and speed gate |
+| Unitree gait adapter | `unitree_gait_ros.py`, `ripeness_demo/unitree_gait.py` | Firmware-matched SDK, configured mode IDs and actual gait feedback |
 | Panorama reprojection | `ripeness_demo/panorama.py:extract_all_faces()` and `extract_side_views()` | Export six faces with `--export-six-faces`; inference uses left/right views |
 | Detection and four-stage classification | `ripeness_demo/detectors.py:TwoStageYoloDetector` | Use `--detector two-stage` with both model weights |
 | Foreground range extraction | `ripeness_demo/evidence.py:RangeEvidence` | Supply registered `radial_metres` arrays with calibration and timestamps |
